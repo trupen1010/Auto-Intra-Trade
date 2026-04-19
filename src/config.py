@@ -49,10 +49,15 @@ def load_config(path: Path | str = "config/settings.yaml") -> AppConfig:
 
     try:
         with config_path.open("r", encoding="utf-8") as config_file:
-            config_data: dict[str, Any] = yaml.safe_load(config_file) or {}
+            loaded_config: Any = yaml.safe_load(config_file)
     except (OSError, yaml.YAMLError) as exc:
         msg = f"Failed to read config from '{config_path}'."
         raise ConfigValidationError(msg) from exc
+
+    config_data: dict[str, Any] = loaded_config or {}
+    if not isinstance(config_data, dict):
+        msg = f"Configuration root in '{config_path}' must be a YAML mapping."
+        raise ConfigValidationError(msg)
 
     execution_data = config_data.get("execution")
     if isinstance(execution_data, dict):

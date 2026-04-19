@@ -18,7 +18,7 @@ def test_load_config_returns_valid_appconfig() -> None:
 
     assert isinstance(config, AppConfig)
     assert config.execution.entry_cutoff_time == time(hour=14, minute=30)
-    assert config.execution.forced_exit_time == time(hour=15, minute=15)
+    assert config.execution.forced_exit_time == time(hour=15, minute=10)
 
 
 def test_load_config_raises_on_missing_file() -> None:
@@ -31,6 +31,15 @@ def test_load_config_raises_on_invalid_yaml(tmp_path: Path) -> None:
     """Invalid YAML content raises ConfigValidationError."""
     config_path = tmp_path / "bad.yaml"
     config_path.write_text("charges: [broken\n", encoding="utf-8")
+
+    with pytest.raises(ConfigValidationError):
+        load_config(config_path)
+
+
+def test_load_config_raises_on_non_mapping_root(tmp_path: Path) -> None:
+    """A YAML root that is not a mapping raises ConfigValidationError."""
+    config_path = tmp_path / "list_root.yaml"
+    config_path.write_text("- not\n- a\n- mapping\n", encoding="utf-8")
 
     with pytest.raises(ConfigValidationError):
         load_config(config_path)
@@ -53,7 +62,7 @@ strategy:
   atr_period: 20
   sensitivity: 3
   hard_sl_atr_multiplier: 1.5
-  risk_per_trade_pct: 1.0
+  risk_per_trade_pct: 0.01
   allow_short: false
   warmup_bars_5m: 50
   warmup_bars_15m: 20
@@ -63,7 +72,7 @@ execution:
   exit_model: next_open
   slippage_pct: 0.0002
   entry_cutoff_time: "14:30"
-  forced_exit_time: "15:15"
+  forced_exit_time: "15:10"
   one_trade_at_a_time: true
   same_candle_reentry_block: true
 """,
