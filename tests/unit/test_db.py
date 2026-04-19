@@ -30,13 +30,13 @@ def test_create_all_tables_creates_expected_tables(db_path: str) -> None:
             SELECT name FROM sqlite_master
             WHERE type='table'
               AND name IN (
-                'candles', 'signals', 'trades', 'rejected_trades', 'run_summaries'
+                'candles', 'signals', 'trades', 'rejected_trades', 'backtest_runs'
               )
             """
         ).fetchall()
 
     found = {name for (name,) in rows}
-    assert found == {"candles", "signals", "trades", "rejected_trades", "run_summaries"}
+    assert found == {"candles", "signals", "trades", "rejected_trades", "backtest_runs"}
 
 
 def test_insert_and_fetch_candles_roundtrip(tmp_path: Path) -> None:
@@ -85,15 +85,16 @@ def test_insert_and_fetch_candles_roundtrip(tmp_path: Path) -> None:
 
 
 def test_insert_trade_and_fetch_by_run_id() -> None:
-    """Inserted trades can be queried by run_id prefix."""
+    """Inserted trades can be queried by escaped run_id prefix."""
     conn = sqlite3.connect(":memory:")
     conn.execute("PRAGMA foreign_keys=ON;")
     create_all_tables(conn)
 
+    run_id = "20260419_103000_reliance"
     entry_time = datetime(2026, 4, 19, 9, 20, tzinfo=IST)
     exit_time = datetime(2026, 4, 19, 10, 0, tzinfo=IST)
     trade = Trade(
-        trade_id="20260419_103000_reliance_0001",
+        trade_id=f"{run_id}_0001",
         symbol="RELIANCE",
         side=TradeSide.LONG,
         entry_tf=EntryTF.FIVE_MINUTE,
@@ -118,8 +119,35 @@ def test_insert_trade_and_fetch_by_run_id() -> None:
         state_5m_at_entry="BUY",
     )
 
+    non_matching_trade = Trade(
+        trade_id="20260419A103000Areliance_0002",
+        symbol="RELIANCE",
+        side=TradeSide.LONG,
+        entry_tf=EntryTF.FIVE_MINUTE,
+        entry_signal_time=entry_time,
+        entry_time=entry_time,
+        entry_signal_price=100.0,
+        entry_price=100.2,
+        quantity=10,
+        hard_stop_price=98.0,
+        exit_signal_time=exit_time,
+        exit_time=exit_time,
+        exit_signal_price=101.0,
+        exit_price=100.8,
+        exit_reason=ExitReason.TIME_EXIT,
+        charges=5.0,
+        gross_pnl=6.0,
+        net_pnl=1.0,
+        capital_before_trade=100000.0,
+        capital_after_trade=100001.0,
+        state_1d_at_entry="BUY",
+        state_15m_at_entry="BUY",
+        state_5m_at_entry="BUY",
+    )
+
     TradeRepository.insert_trade(conn, trade)
-    fetched = TradeRepository.fetch_trades(conn, "20260419_103000_reliance")
+    TradeRepository.insert_trade(conn, non_matching_trade)
+    fetched = TradeRepository.fetch_trades(conn, run_id)
 
     conn.close()
 

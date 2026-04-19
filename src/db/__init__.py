@@ -2,9 +2,9 @@
 
 from src.db.repository import CandleRepository, RunRepository, TradeRepository
 from src.db.schema import (
+    BACKTEST_RUNS_TABLE_DDL,
     CANDLES_TABLE_DDL,
     REJECTED_TRADES_TABLE_DDL,
-    RUN_SUMMARIES_TABLE_DDL,
     SIGNALS_TABLE_DDL,
     TRADES_TABLE_DDL,
     create_all_tables,
@@ -12,10 +12,10 @@ from src.db.schema import (
 from src.db.sqlite_service import connection_context, get_connection
 
 __all__ = [
+    "BACKTEST_RUNS_TABLE_DDL",
     "CANDLES_TABLE_DDL",
     "CandleRepository",
     "REJECTED_TRADES_TABLE_DDL",
-    "RUN_SUMMARIES_TABLE_DDL",
     "RunRepository",
     "SIGNALS_TABLE_DDL",
     "TRADES_TABLE_DDL",
