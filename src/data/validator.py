@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from src.models.candle import Candle
-from src.utils.datetime_utils import is_market_hours
+from src.utils.datetime_utils import is_market_hours, is_same_session
 from src.utils.exceptions import DataGapError, InsufficientDataError, InvalidCandleError
 
 _INTRADAY_GAP_LIMITS = {
@@ -31,10 +31,29 @@ def validate_candle_sequence(candles: list[Candle], timeframe: str, symbol: str)
         msg = f"Insufficient candles for symbol '{symbol}' on timeframe '{timeframe}': minimum 2 required."
         raise InsufficientDataError(msg)
 
+    _validate_symbol_and_timeframe(candles, timeframe, symbol)
     _validate_chronological_order(candles, timeframe, symbol)
     _validate_duplicate_timestamps(candles, timeframe, symbol)
     _validate_market_hours(candles, timeframe, symbol)
     _validate_intraday_gaps(candles, timeframe, symbol)
+
+
+def _validate_symbol_and_timeframe(candles: list[Candle], timeframe: str, symbol: str) -> None:
+    """Ensure each candle matches the expected symbol and timeframe."""
+    for candle in candles:
+        if candle.symbol != symbol:
+            msg = (
+                f"Candle symbol mismatch for validation on timeframe '{timeframe}': "
+                f"expected '{symbol}', got '{candle.symbol}'."
+            )
+            raise InvalidCandleError(msg)
+
+        if candle.timeframe != timeframe:
+            msg = (
+                f"Candle timeframe mismatch for symbol '{symbol}': "
+                f"expected '{timeframe}', got '{candle.timeframe}'."
+            )
+            raise InvalidCandleError(msg)
 
 
 def _validate_chronological_order(candles: list[Candle], timeframe: str, symbol: str) -> None:
@@ -84,6 +103,8 @@ def _validate_intraday_gaps(candles: list[Candle], timeframe: str, symbol: str) 
         return
 
     for previous, current in zip(candles, candles[1:]):
+        if not is_same_session(previous.timestamp, current.timestamp):
+            continue
         gap = current.timestamp - previous.timestamp
         if gap > max_gap:
             msg = (

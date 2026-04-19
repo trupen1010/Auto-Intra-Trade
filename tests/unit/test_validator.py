@@ -14,11 +14,15 @@ from src.utils.exceptions import DataGapError, InsufficientDataError, InvalidCan
 IST = ZoneInfo("Asia/Kolkata")
 
 
-def _candle(timestamp: datetime) -> Candle:
+def _candle(
+    timestamp: datetime,
+    timeframe: str = "5m",
+    symbol: str = "NSE_EQ|INE002A01018",
+) -> Candle:
     """Build a minimal valid candle for validator tests."""
     return Candle(
-        symbol="NSE_EQ|INE002A01018",
-        timeframe="5m",
+        symbol=symbol,
+        timeframe=timeframe,
         timestamp=timestamp,
         open=100.0,
         high=101.0,
@@ -70,8 +74,8 @@ def test_validate_raises_outside_market_hours_for_intraday() -> None:
 def test_validate_skips_market_hours_check_for_1d() -> None:
     """Daily timeframe skips market-hours validation."""
     candles = [
-        _candle(datetime(2026, 4, 19, 0, 0, tzinfo=IST)),
-        _candle(datetime(2026, 4, 20, 0, 0, tzinfo=IST)),
+        _candle(datetime(2026, 4, 19, 0, 0, tzinfo=IST), timeframe="1d"),
+        _candle(datetime(2026, 4, 20, 0, 0, tzinfo=IST), timeframe="1d"),
     ]
 
     validate_candle_sequence(candles, timeframe="1d", symbol="NSE_EQ|INE002A01018")
@@ -94,6 +98,27 @@ def test_validate_passes_for_clean_sequence() -> None:
         _candle(datetime(2026, 4, 19, 9, 20, tzinfo=IST)),
         _candle(datetime(2026, 4, 19, 9, 25, tzinfo=IST)),
         _candle(datetime(2026, 4, 19, 9, 30, tzinfo=IST)),
+    ]
+
+    validate_candle_sequence(candles, timeframe="5m", symbol="NSE_EQ|INE002A01018")
+
+
+def test_validate_raises_on_timeframe_mismatch() -> None:
+    """Validator rejects candles with unexpected timeframe values."""
+    candles = [
+        _candle(datetime(2026, 4, 19, 9, 20, tzinfo=IST), timeframe="1d"),
+        _candle(datetime(2026, 4, 20, 9, 20, tzinfo=IST), timeframe="1d"),
+    ]
+
+    with pytest.raises(InvalidCandleError, match="timeframe mismatch"):
+        validate_candle_sequence(candles, timeframe="5m", symbol="NSE_EQ|INE002A01018")
+
+
+def test_validate_skips_intraday_gap_check_across_sessions() -> None:
+    """Overnight session transition is not treated as an intraday data gap."""
+    candles = [
+        _candle(datetime(2026, 4, 19, 15, 30, tzinfo=IST)),
+        _candle(datetime(2026, 4, 20, 9, 15, tzinfo=IST)),
     ]
 
     validate_candle_sequence(candles, timeframe="5m", symbol="NSE_EQ|INE002A01018")

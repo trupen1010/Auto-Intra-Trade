@@ -45,6 +45,15 @@ def test_transform_raises_on_negative_ohlcv() -> None:
         transform_candles(raw_rows, symbol="NSE_EQ|INE002A01018", timeframe="5m")
 
 
+def test_transform_allows_zero_volume() -> None:
+    """Rows with zero volume remain valid."""
+    raw_rows = [["2026-04-19T09:20:00+05:30", 100.0, 101.0, 99.0, 100.5, 0.0, 0.0]]
+
+    candles = transform_candles(raw_rows, symbol="NSE_EQ|INE002A01018", timeframe="5m")
+
+    assert candles[0].volume == 0.0
+
+
 def test_transform_result_is_sorted_ascending() -> None:
     """Returned candle list is sorted ascending by timestamp."""
     raw_rows = [
@@ -62,4 +71,12 @@ def test_transform_raises_on_unparseable_timestamp() -> None:
     raw_rows = [["2026-13-19 09:20:00", 100.0, 101.0, 99.0, 100.5, 1000.0, 0.0]]
 
     with pytest.raises(InvalidCandleError, match="Invalid candle timestamp"):
+        transform_candles(raw_rows, symbol="NSE_EQ|INE002A01018", timeframe="5m")
+
+
+def test_transform_raises_on_invalid_ohlc_bounds() -> None:
+    """Rows with logically invalid OHLC bounds are rejected."""
+    raw_rows = [["2026-04-19T09:20:00+05:30", 101.0, 100.0, 99.0, 100.5, 1000.0, 0.0]]
+
+    with pytest.raises(InvalidCandleError, match="OHLC bounds"):
         transform_candles(raw_rows, symbol="NSE_EQ|INE002A01018", timeframe="5m")
