@@ -50,8 +50,8 @@ charges:
   sebi_pct: 0.000001
   stamp_duty_buy_pct: 0.00003
 strategy:
-  atr_period: 1
-  sensitivity: 1
+  atr_period: 20
+  sensitivity: 3
   hard_sl_atr_multiplier: 1.5
   risk_per_trade_pct: 1.0
   allow_short: false
