@@ -45,7 +45,12 @@ def _escape_like(value: str) -> str:
     Returns:
         Escaped pattern-safe text.
     """
-    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    escaped_chars: list[str] = []
+    for char in value:
+        if char in {"\\", "%", "_"}:
+            escaped_chars.append("\\")
+        escaped_chars.append(char)
+    return "".join(escaped_chars)
 
 
 def _normalize_datetime_field(value: datetime | int | str | None) -> str | None:
