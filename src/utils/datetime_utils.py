@@ -30,7 +30,8 @@ def validate_ist_datetime(dt: datetime, field_name: str = "datetime") -> None:
         msg = f"{field_name} must be timezone-aware Asia/Kolkata datetime."
         raise ValueError(msg)
 
-    if dt.utcoffset() != timedelta(hours=5, minutes=30):
+    offset = dt.utcoffset()
+    if offset is None or offset != timedelta(hours=5, minutes=30):
         msg = f"{field_name} must be timezone-aware Asia/Kolkata datetime."
         raise ValueError(msg)
 
