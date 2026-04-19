@@ -154,6 +154,7 @@ def test_insert_trade_and_fetch_by_run_id() -> None:
     assert len(fetched) == 1
     assert fetched[0].trade_id == trade.trade_id
     assert fetched[0].exit_reason == ExitReason.TIME_EXIT
+    assert all(saved_trade.trade_id != non_matching_trade.trade_id for saved_trade in fetched)
 
 
 def test_insert_rejected_trade() -> None:

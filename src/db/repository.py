@@ -86,6 +86,22 @@ def _iso_date_part(value: datetime | int | str | None) -> str:
     return normalized[:10]
 
 
+def _summary_value(summary: dict, preferred_key: str, fallback_key: str) -> object:
+    """Read a summary value preferring explicit key presence.
+
+    Args:
+        summary: Summary payload.
+        preferred_key: Preferred key name.
+        fallback_key: Fallback key name.
+
+    Returns:
+        The selected value or None.
+    """
+    if preferred_key in summary:
+        return summary[preferred_key]
+    return summary.get(fallback_key)
+
+
 class CandleRepository:
     """Persistence operations for candle records."""
 
@@ -261,10 +277,10 @@ class TradeRepository:
                 capital_after_trade, state_1d_at_entry, state_15m_at_entry,
                 state_5m_at_entry
             FROM trades
-            WHERE trade_id LIKE ? ESCAPE '\\'
+            WHERE trade_id = ? OR trade_id LIKE ? ESCAPE '\\'
             ORDER BY entry_time ASC
             """,
-            (f"{escaped_run_id}\\_%",),
+            (run_id, f"{escaped_run_id}\\_%"),
         )
         rows = cursor.fetchall()
         return [
@@ -317,12 +333,16 @@ class RunRepository:
             """,
             (
                 summary["run_id"],
-                _normalize_datetime_field(summary.get("started_at") or summary.get("start_ts")),
-                _normalize_datetime_field(summary.get("finished_at") or summary.get("end_ts")),
+                _normalize_datetime_field(_summary_value(summary, "started_at", "start_ts")),
+                _normalize_datetime_field(_summary_value(summary, "finished_at", "end_ts")),
                 summary["config_snapshot"],
-                summary.get("symbols") or summary.get("symbol") or "",
-                summary.get("date_from") or _iso_date_part(summary.get("started_at") or summary.get("start_ts")),
-                summary.get("date_to") or _iso_date_part(summary.get("finished_at") or summary.get("end_ts")),
+                _summary_value(summary, "symbols", "symbol") or "",
+                summary["date_from"]
+                if "date_from" in summary
+                else _iso_date_part(_summary_value(summary, "started_at", "start_ts")),
+                summary["date_to"]
+                if "date_to" in summary
+                else _iso_date_part(_summary_value(summary, "finished_at", "end_ts")),
                 summary.get("total_trades", 0),
                 summary.get("net_profit", summary.get("net_pnl", 0.0)),
                 summary.get("max_drawdown", 0.0),
