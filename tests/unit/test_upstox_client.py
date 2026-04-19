@@ -36,8 +36,8 @@ def test_fetch_returns_candle_list_on_success() -> None:
 
     assert len(candles) == 2
     mock_get.assert_called_once_with(
-        "https://api.upstox.com/v2/historical-candle/NSE_EQ|INE002A01018/5minute/2026-04-02/2026-04-01",
-        headers={"Authorisation": "Bearer token"},
+        "https://api.upstox.com/v2/historical-candle/NSE_EQ%7CINE002A01018/5minute/2026-04-02/2026-04-01",
+        headers={"Authorization": "Bearer token"},
         timeout=30,
     )
 
@@ -83,6 +83,70 @@ def test_fetch_raises_on_connection_error() -> None:
         "src.data.upstox_client.requests.get",
         side_effect=requests.ConnectionError("offline"),
     ):
+        with pytest.raises(BacktestEngineError):
+            client.fetch_historical_candles(
+                symbol="NSE_EQ|INE002A01018",
+                timeframe="1d",
+                from_date=date(2026, 4, 1),
+                to_date=date(2026, 4, 2),
+            )
+
+
+def test_fetch_raises_on_timeout_error() -> None:
+    """Timeout errors are wrapped as BacktestEngineError."""
+    client = UpstoxClient(access_token="token")
+
+    with patch(
+        "src.data.upstox_client.requests.get",
+        side_effect=requests.Timeout("timed out"),
+    ):
+        with pytest.raises(BacktestEngineError):
+            client.fetch_historical_candles(
+                symbol="NSE_EQ|INE002A01018",
+                timeframe="1d",
+                from_date=date(2026, 4, 1),
+                to_date=date(2026, 4, 2),
+            )
+
+
+def test_fetch_raises_on_invalid_timeframe() -> None:
+    """Unsupported timeframe raises ValueError."""
+    client = UpstoxClient(access_token="token")
+
+    with pytest.raises(ValueError, match="Unsupported timeframe: 1m"):
+        client.fetch_historical_candles(
+            symbol="NSE_EQ|INE002A01018",
+            timeframe="1m",
+            from_date=date(2026, 4, 1),
+            to_date=date(2026, 4, 2),
+        )
+
+
+def test_fetch_raises_on_non_json_payload() -> None:
+    """Non-JSON response bodies are wrapped as BacktestEngineError."""
+    client = UpstoxClient(access_token="token")
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.json.side_effect = ValueError("not json")
+
+    with patch("src.data.upstox_client.requests.get", return_value=mock_response):
+        with pytest.raises(BacktestEngineError):
+            client.fetch_historical_candles(
+                symbol="NSE_EQ|INE002A01018",
+                timeframe="1d",
+                from_date=date(2026, 4, 1),
+                to_date=date(2026, 4, 2),
+            )
+
+
+def test_fetch_raises_on_invalid_payload_schema() -> None:
+    """Invalid payload schema is wrapped as BacktestEngineError."""
+    client = UpstoxClient(access_token="token")
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.json.return_value = {"data": {"candles": {}}}
+
+    with patch("src.data.upstox_client.requests.get", return_value=mock_response):
         with pytest.raises(BacktestEngineError):
             client.fetch_historical_candles(
                 symbol="NSE_EQ|INE002A01018",

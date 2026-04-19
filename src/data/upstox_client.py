@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from urllib.parse import quote
 
 import requests
 
@@ -53,17 +54,18 @@ class UpstoxClient:
         Raises:
             ValueError: If timeframe is unsupported.
             InsufficientDataError: If API returns no candle rows.
-            BacktestEngineError: If request fails with HTTP or connection error.
+            BacktestEngineError: If request fails or response payload is malformed.
         """
         interval = self.TIMEFRAME_TO_INTERVAL.get(timeframe)
         if interval is None:
             raise ValueError(f"Unsupported timeframe: {timeframe}")
 
+        encoded_symbol = quote(symbol, safe="")
         endpoint = (
             f"{self.BASE_URL}/historical-candle/"
-            f"{symbol}/{interval}/{to_date.isoformat()}/{from_date.isoformat()}"
+            f"{encoded_symbol}/{interval}/{to_date.isoformat()}/{from_date.isoformat()}"
         )
-        headers = {"Authorisation": f"Bearer {self._access_token}"}
+        headers = {"Authorization": f"Bearer {self._access_token}"}
 
         try:
             response = requests.get(
@@ -72,12 +74,42 @@ class UpstoxClient:
                 timeout=self.REQUEST_TIMEOUT_SECONDS,
             )
             response.raise_for_status()
-        except (requests.HTTPError, requests.ConnectionError) as exc:
+        except requests.RequestException as exc:
             msg = f"Failed to fetch candles for symbol '{symbol}' on timeframe '{timeframe}'."
             raise BacktestEngineError(msg) from exc
 
-        payload = response.json()
-        candles: list[dict] = payload["data"]["candles"]
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            msg = (
+                f"Received non-JSON response while fetching candles for symbol '{symbol}' "
+                f"on timeframe '{timeframe}'."
+            )
+            raise BacktestEngineError(msg) from exc
+
+        if not isinstance(payload, dict):
+            msg = (
+                f"Received invalid response payload while fetching candles for symbol '{symbol}' "
+                f"on timeframe '{timeframe}': expected top-level object."
+            )
+            raise BacktestEngineError(msg)
+
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            msg = (
+                f"Received invalid response payload while fetching candles for symbol '{symbol}' "
+                f"on timeframe '{timeframe}': missing or invalid 'data' object."
+            )
+            raise BacktestEngineError(msg)
+
+        candles = data.get("candles")
+        if not isinstance(candles, list):
+            msg = (
+                f"Received invalid response payload while fetching candles for symbol '{symbol}' "
+                f"on timeframe '{timeframe}': missing or invalid 'data.candles' list."
+            )
+            raise BacktestEngineError(msg)
+
         if not candles:
             msg = (
                 f"No candle data returned for symbol '{symbol}', timeframe '{timeframe}', "
