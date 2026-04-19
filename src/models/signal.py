@@ -26,6 +26,11 @@ class SignalState:
         Raises:
             ValueError: If timeframe is unsupported or datetime is invalid.
         """
+        try:
+            self.side = SignalSide(self.side)
+        except ValueError as exc:
+            raise ValueError(f"Unsupported signal side: {self.side}") from exc
+
         valid_timeframes = {tf.value for tf in Timeframe}
         if self.timeframe not in valid_timeframes:
             raise ValueError(f"Unsupported timeframe: {self.timeframe}")

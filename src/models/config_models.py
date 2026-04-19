@@ -53,7 +53,11 @@ class ExecutionConfig(BaseModel):
 
 
 class AppConfig(BaseModel):
-    """Top-level application configuration."""
+    """Step-2 application configuration subset.
+
+    This model intentionally validates only the strategy/execution/charges
+    sections introduced in Step 2.
+    """
 
     model_config = ConfigDict(extra="forbid")
 

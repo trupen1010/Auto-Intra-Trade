@@ -43,6 +43,22 @@ class Trade:
         Raises:
             ValueError: If any datetime field is invalid.
         """
+        try:
+            self.side = TradeSide(self.side)
+        except ValueError as exc:
+            raise ValueError(f"Unsupported trade side: {self.side}") from exc
+
+        try:
+            self.entry_tf = EntryTF(self.entry_tf)
+        except ValueError as exc:
+            raise ValueError(f"Unsupported entry timeframe: {self.entry_tf}") from exc
+
+        if self.exit_reason is not None:
+            try:
+                self.exit_reason = ExitReason(self.exit_reason)
+            except ValueError as exc:
+                raise ValueError(f"Unsupported exit reason: {self.exit_reason}") from exc
+
         validate_ist_datetime(self.entry_signal_time, "entry_signal_time")
         validate_ist_datetime(self.entry_time, "entry_time")
 
