@@ -16,6 +16,25 @@ MARKET_OPEN = time(hour=9, minute=15)
 MARKET_CLOSE = time(hour=15, minute=30)
 
 
+def validate_ist_datetime(dt: datetime, field_name: str = "datetime") -> None:
+    """Validate that a datetime is timezone-aware and in Asia/Kolkata.
+
+    Args:
+        dt: Datetime to validate.
+        field_name: Field name used for error messages.
+
+    Raises:
+        ValueError: If datetime is timezone-naive or not Asia/Kolkata.
+    """
+    if dt.tzinfo is None:
+        msg = f"{field_name} must be timezone-aware Asia/Kolkata datetime."
+        raise ValueError(msg)
+
+    if getattr(dt.tzinfo, "key", None) != IST.key:
+        msg = f"{field_name} must be timezone-aware Asia/Kolkata datetime."
+        raise ValueError(msg)
+
+
 def to_ist(dt: datetime) -> datetime:
     """Convert a timezone-aware datetime to Asia/Kolkata.
 

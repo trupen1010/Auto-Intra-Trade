@@ -4,28 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
+from src.utils.datetime_utils import validate_ist_datetime
 from src.utils.enums import EntryTF, ExitReason, Timeframe, TradeSide
-
-IST = ZoneInfo("Asia/Kolkata")
-
-
-def _validate_ist_datetime(value: datetime, field_name: str) -> None:
-    """Validate that a datetime value is timezone-aware Asia/Kolkata.
-
-    Args:
-        value: Datetime value to validate.
-        field_name: Name of the field being validated.
-
-    Raises:
-        ValueError: If datetime is naive or not Asia/Kolkata timezone.
-    """
-    if value.tzinfo is None:
-        raise ValueError(f"{field_name} must be timezone-aware Asia/Kolkata datetime.")
-
-    if getattr(value.tzinfo, "key", None) != IST.key:
-        raise ValueError(f"{field_name} must be timezone-aware Asia/Kolkata datetime.")
 
 
 @dataclass(slots=True)
@@ -62,14 +43,14 @@ class Trade:
         Raises:
             ValueError: If any datetime field is invalid.
         """
-        _validate_ist_datetime(self.entry_signal_time, "entry_signal_time")
-        _validate_ist_datetime(self.entry_time, "entry_time")
+        validate_ist_datetime(self.entry_signal_time, "entry_signal_time")
+        validate_ist_datetime(self.entry_time, "entry_time")
 
         if self.exit_signal_time is not None:
-            _validate_ist_datetime(self.exit_signal_time, "exit_signal_time")
+            validate_ist_datetime(self.exit_signal_time, "exit_signal_time")
 
         if self.exit_time is not None:
-            _validate_ist_datetime(self.exit_time, "exit_time")
+            validate_ist_datetime(self.exit_time, "exit_time")
 
 
 @dataclass(slots=True)
@@ -92,4 +73,4 @@ class RejectedTrade:
         if self.timeframe not in valid_timeframes:
             raise ValueError(f"Unsupported timeframe: {self.timeframe}")
 
-        _validate_ist_datetime(self.timestamp, "timestamp")
+        validate_ist_datetime(self.timestamp, "timestamp")
