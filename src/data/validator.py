@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from src.models.candle import Candle
 from src.utils.datetime_utils import is_market_hours
@@ -52,7 +52,7 @@ def _validate_chronological_order(candles: list[Candle], timeframe: str, symbol:
 
 def _validate_duplicate_timestamps(candles: list[Candle], timeframe: str, symbol: str) -> None:
     """Ensure no duplicate candle timestamps exist."""
-    seen: set = set()
+    seen: set[datetime] = set()
     for candle in candles:
         if candle.timestamp in seen:
             msg = (
