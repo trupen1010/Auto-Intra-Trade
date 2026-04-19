@@ -1,0 +1,27 @@
+charges:
+  brokerage_pct: 0.0003
+  brokerage_cap_per_order: 20.0
+  stt_sell_pct: 0.001
+  transaction_pct: 0.0000335
+  gst_pct: 0.18
+  sebi_pct: 0.000001
+  stamp_duty_buy_pct: 0.00003
+
+strategy:
+  atr_period: 20
+  sensitivity: 3
+  hard_sl_atr_multiplier: 1.5
+  risk_per_trade_pct: 0.01
+  allow_short: false
+  warmup_bars_5m: 50
+  warmup_bars_15m: 20
+  warmup_bars_1d: 10
+
+execution:
+  entry_model: next_open
+  exit_model: next_open
+  slippage_pct: 0.0002
+  entry_cutoff_time: "14:30"
+  forced_exit_time: "15:10"
+  one_trade_at_a_time: true
+  same_candle_reentry_block: true
