@@ -90,7 +90,7 @@ def test_insert_trade_and_fetch_by_run_id() -> None:
     conn.execute("PRAGMA foreign_keys=ON;")
     create_all_tables(conn)
 
-    run_id = "20260419_103000_reliance"
+    run_id = "20260419_103000_r%liance"
     entry_time = datetime(2026, 4, 19, 9, 20, tzinfo=IST)
     exit_time = datetime(2026, 4, 19, 10, 0, tzinfo=IST)
     trade = Trade(
@@ -120,7 +120,7 @@ def test_insert_trade_and_fetch_by_run_id() -> None:
     )
 
     non_matching_trade = Trade(
-        trade_id="20260419A103000Areliance_0002",
+        trade_id="20260419_103000_reliance_0002",
         symbol="RELIANCE",
         side=TradeSide.LONG,
         entry_tf=EntryTF.FIVE_MINUTE,
