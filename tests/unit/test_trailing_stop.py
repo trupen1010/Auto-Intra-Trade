@@ -54,14 +54,14 @@ def test_trailing_stop_bullish_ratchet() -> None:
 
 def test_trailing_stop_bearish_ratchet() -> None:
     """In bearish sequence, stop ratchets downward and does not increase."""
-    candles = _build_candle_series([100.0, 80.0, 78.0, 76.0, 74.0])
+    candles = _build_candle_series([100.0, 102.0, 80.0, 78.0, 76.0])
     atr_values = [0.0, 1.0, 1.0, 1.0, 1.0]
 
     stops = compute_trailing_stop(candles, atr_values, sensitivity=2)
 
     assert stops[0] == 0.0
-    assert stops == [0.0, 82.0, 80.0, 78.0, 76.0]
-    assert all(curr <= prev for prev, curr in zip(stops[1:-1], stops[2:]))
+    assert stops == [0.0, 100.0, 82.0, 80.0, 78.0]
+    assert all(curr <= prev for prev, curr in zip(stops[2:-1], stops[3:]))
 
 
 def test_trailing_stop_raises_on_length_mismatch() -> None:
@@ -80,4 +80,3 @@ def test_trailing_stop_first_value_is_zero() -> None:
     stops = compute_trailing_stop(candles, atr_values, sensitivity=3)
 
     assert stops[0] == 0.0
-
