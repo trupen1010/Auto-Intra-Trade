@@ -31,10 +31,10 @@ def fetch_and_store_candles(
         to_date: Inclusive fetch end date.
 
     Returns:
-        Validated candle sequence persisted to storage.
+        The validated list of Candle objects that was persisted to storage.
     """
     raw = client.fetch_historical_candles(symbol, timeframe, from_date, to_date)
     candles = transform_candles(raw, symbol, timeframe)
     validate_candle_sequence(candles, timeframe, symbol)
-    CandleRepository().insert_candles(conn, candles)
+    CandleRepository.insert_candles(conn, candles)
     return candles
