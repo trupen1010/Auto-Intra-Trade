@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import math
+
 from src.models.candle import Candle
+from src.utils.enums import SignalSide
 
 
 def compute_trailing_stop(
     candles: list[Candle],
     atr_values: list[float],
     sensitivity: int,
-) -> list[float]:
+) -> tuple[list[float], list[SignalSide]]:
     """Compute recursive ATR trailing stop from candles and ATR values.
 
     Args:
@@ -18,7 +21,7 @@ def compute_trailing_stop(
         sensitivity: Multiplication factor for ATR loss distance.
 
     Returns:
-        Trailing-stop values with same length as candles.
+        A tuple of trailing-stop values and per-bar signal side states.
 
     Raises:
         ValueError: If candle and ATR lengths differ.
@@ -26,15 +29,25 @@ def compute_trailing_stop(
     if len(candles) != len(atr_values):
         raise ValueError("candles and atr_values must have the same length")
     if not candles:
-        return []
+        return ([], [])
 
     stops = [0.0] * len(candles)
+    positions = [0] * len(candles)
+    sides = [SignalSide.NEUTRAL] * len(candles)
 
     for idx in range(1, len(candles)):
         close = candles[idx].close
         prev_close = candles[idx - 1].close
         prev_stop = stops[idx - 1]
-        loss = float(sensitivity) * atr_values[idx]
+        atr_value = atr_values[idx]
+
+        if not math.isfinite(atr_value):
+            stops[idx] = prev_stop
+            positions[idx] = positions[idx - 1]
+            sides[idx] = sides[idx - 1]
+            continue
+
+        loss = float(sensitivity) * atr_value
 
         if close > prev_stop and prev_close > prev_stop:
             stops[idx] = max(prev_stop, close - loss)
@@ -45,5 +58,18 @@ def compute_trailing_stop(
         else:
             stops[idx] = close + loss
 
-    return stops
+        if prev_close > prev_stop and close < prev_stop:
+            positions[idx] = -1
+        elif prev_close < prev_stop and close > prev_stop:
+            positions[idx] = 1
+        else:
+            positions[idx] = positions[idx - 1]
 
+        if positions[idx] == 1:
+            sides[idx] = SignalSide.BUY
+        elif positions[idx] == -1:
+            sides[idx] = SignalSide.SELL
+        else:
+            sides[idx] = SignalSide.NEUTRAL
+
+    return (stops, sides)
