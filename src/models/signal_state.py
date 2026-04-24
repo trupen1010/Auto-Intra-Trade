@@ -8,7 +8,7 @@ from src.utils.enums import SignalSide
 
 
 @dataclass(frozen=True, slots=True)
-class SignalState:
+class SignalTransition:
     """Represents signal side state for one bar with transition metadata.
 
     Attributes:
