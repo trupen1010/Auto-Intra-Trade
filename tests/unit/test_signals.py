@@ -69,10 +69,10 @@ def test_generate_signal_states_emits_fresh_transitions() -> None:
                 datetime(2024, 1, 1, 9, 20, tzinfo=tz),
                 datetime(2024, 1, 1, 9, 25, tzinfo=tz),
             ],
-            "open": [-1.0, 1.0, 2.0],
-            "high": [0.0, 2.0, 3.0],
-            "low": [-2.0, 0.0, 1.0],
-            "close": [-1.0, 1.0, 2.0],
+            "open": [100.0, 130.0, 90.0],
+            "high": [110.0, 140.0, 95.0],
+            "low": [90.0, 120.0, 85.0],
+            "close": [100.0, 130.0, 90.0],
             "volume": [100.0, 110.0, 120.0],
             "symbol": ["TEST"] * 3,
             "timeframe": ["5m"] * 3,
@@ -90,9 +90,9 @@ def test_generate_signal_states_emits_fresh_transitions() -> None:
         "buy_signal",
         "sell_signal",
     ]
-    assert result["signal_side"].tolist() == ["NEUTRAL", "BUY", "BUY"]
-    assert result["buy_signal"].tolist() == [False, True, False]
-    assert result["sell_signal"].tolist() == [False, False, False]
+    assert result["signal_side"].tolist() == ["NEUTRAL", "NEUTRAL", "SELL"]
+    assert result["buy_signal"].tolist() == [False, False, False]
+    assert result["sell_signal"].tolist() == [False, False, True]
 
 
 def test_generate_signal_states_requires_columns() -> None:
