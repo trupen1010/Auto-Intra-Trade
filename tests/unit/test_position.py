@@ -6,8 +6,8 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from src.engine.position import OpenPosition
-from src.models.trade import Trade
-from src.utils.enums import ExitReason, SignalSide
+from src.engine.trade_state import EngineTradeState
+from src.utils.enums import EntryTF, ExitReason, SignalSide
 
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -18,10 +18,10 @@ def _dt(hour: int, minute: int) -> datetime:
 
 
 def test_to_closed_trade_buy_profit() -> None:
-    trade = Trade(
+    trade = EngineTradeState(
         run_id="run1",
         symbol="ABC",
-        timeframe_entry="5m",
+        timeframe_entry=EntryTF.FIVE_MINUTE,
         direction=SignalSide.BUY,
         entry_time=_dt(9, 20),
         entry_price=100.0,
@@ -34,7 +34,7 @@ def test_to_closed_trade_buy_profit() -> None:
         exit_time=_dt(9, 25),
         exit_price=110.0,
         exit_reason=ExitReason.SIGNAL_EXIT,
-        charges_pct=0.0,
+        charges=0.0,
     )
 
     assert closed.pnl_points == pytest.approx(10.0, abs=1e-4)
@@ -43,10 +43,10 @@ def test_to_closed_trade_buy_profit() -> None:
 
 
 def test_to_closed_trade_sell_profit() -> None:
-    trade = Trade(
+    trade = EngineTradeState(
         run_id="run1",
         symbol="ABC",
-        timeframe_entry="15m",
+        timeframe_entry=EntryTF.FIFTEEN_MINUTE,
         direction=SignalSide.SELL,
         entry_time=_dt(10, 0),
         entry_price=200.0,
@@ -59,7 +59,7 @@ def test_to_closed_trade_sell_profit() -> None:
         exit_time=_dt(10, 5),
         exit_price=180.0,
         exit_reason=ExitReason.TIME_EXIT,
-        charges_pct=0.0,
+        charges=0.0,
     )
 
     assert closed.pnl_points == pytest.approx(20.0, abs=1e-4)
@@ -67,10 +67,10 @@ def test_to_closed_trade_sell_profit() -> None:
 
 
 def test_to_closed_trade_charges_reduce_net_pnl() -> None:
-    trade = Trade(
+    trade = EngineTradeState(
         run_id="run1",
         symbol="ABC",
-        timeframe_entry="5m",
+        timeframe_entry=EntryTF.FIVE_MINUTE,
         direction=SignalSide.BUY,
         entry_time=_dt(11, 0),
         entry_price=100.0,
@@ -79,23 +79,24 @@ def test_to_closed_trade_charges_reduce_net_pnl() -> None:
     )
     position = OpenPosition(trade=trade, current_stop=95.0)
 
+    # charges precomputed by caller (e.g. via calculate_round_trip_charges)
+    precomputed_charges = 21.0
     closed = position.to_closed_trade(
         exit_time=_dt(11, 5),
         exit_price=110.0,
         exit_reason=ExitReason.SIGNAL_EXIT,
-        charges_pct=0.01,
+        charges=precomputed_charges,
     )
 
-    # notional = (100 + 110) * 10 = 2100, charges = 21
     assert closed.charges == pytest.approx(21.0, abs=1e-4)
     assert closed.net_pnl == pytest.approx(79.0, abs=1e-4)
 
 
 def test_pnl_points_sign_correct_for_loss() -> None:
-    buy_trade = Trade(
+    buy_trade = EngineTradeState(
         run_id="run1",
         symbol="ABC",
-        timeframe_entry="5m",
+        timeframe_entry=EntryTF.FIVE_MINUTE,
         direction=SignalSide.BUY,
         entry_time=_dt(12, 0),
         entry_price=100.0,
@@ -106,14 +107,14 @@ def test_pnl_points_sign_correct_for_loss() -> None:
         exit_time=_dt(12, 5),
         exit_price=90.0,
         exit_reason=ExitReason.HARD_SL,
-        charges_pct=0.0,
+        charges=0.0,
     )
     assert buy_closed.pnl_points == pytest.approx(-10.0, abs=1e-4)
 
-    sell_trade = Trade(
+    sell_trade = EngineTradeState(
         run_id="run1",
         symbol="ABC",
-        timeframe_entry="15m",
+        timeframe_entry=EntryTF.FIFTEEN_MINUTE,
         direction=SignalSide.SELL,
         entry_time=_dt(12, 0),
         entry_price=100.0,
@@ -124,7 +125,8 @@ def test_pnl_points_sign_correct_for_loss() -> None:
         exit_time=_dt(12, 15),
         exit_price=110.0,
         exit_reason=ExitReason.HARD_SL,
-        charges_pct=0.0,
+        charges=0.0,
     )
     assert sell_closed.pnl_points == pytest.approx(-10.0, abs=1e-4)
+
 

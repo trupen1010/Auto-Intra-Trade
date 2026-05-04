@@ -33,6 +33,9 @@ class ExitReason(StrEnum):
 
     HARD_SL = "HARD_SL"
     TIME_EXIT = "TIME_EXIT"
+    SIGNAL_5M = "SIGNAL_5M"
+    SIGNAL_15M = "SIGNAL_15M"
+    DATA_ERROR = "DATA_ERROR"
     SIGNAL_EXIT = "SIGNAL_EXIT"
 
 
