@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from src.indicators.signals import detect_signals
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+import pandas as pd
+import pytest
+
+from src.indicators.signals import detect_signals, generate_signal_states
 from src.utils.enums import SignalSide
 
 
@@ -51,3 +57,55 @@ def test_neutral_to_neutral_is_not_fresh() -> None:
     result = detect_signals([SignalSide.NEUTRAL, SignalSide.NEUTRAL])
 
     assert result[1].is_fresh is False
+
+
+def test_generate_signal_states_emits_fresh_transitions() -> None:
+    """Signal state output includes transition-based buy/sell flags."""
+    tz = ZoneInfo("Asia/Kolkata")
+    df = pd.DataFrame(
+        {
+            "timestamp": [
+                datetime(2024, 1, 1, 9, 15, tzinfo=tz),
+                datetime(2024, 1, 1, 9, 20, tzinfo=tz),
+                datetime(2024, 1, 1, 9, 25, tzinfo=tz),
+            ],
+            "open": [-1.0, 1.0, 2.0],
+            "high": [0.0, 2.0, 3.0],
+            "low": [-2.0, 0.0, 1.0],
+            "close": [-1.0, 1.0, 2.0],
+            "volume": [100.0, 110.0, 120.0],
+            "symbol": ["TEST"] * 3,
+            "timeframe": ["5m"] * 3,
+        }
+    )
+
+    result = generate_signal_states(df, atr_period=2, sensitivity=1)
+
+    assert list(result.columns) == [
+        "timestamp",
+        "close",
+        "atr",
+        "trailing_stop",
+        "signal_side",
+        "buy_signal",
+        "sell_signal",
+    ]
+    assert result["signal_side"].tolist() == ["NEUTRAL", "BUY", "BUY"]
+    assert result["buy_signal"].tolist() == [False, True, False]
+    assert result["sell_signal"].tolist() == [False, False, False]
+
+
+def test_generate_signal_states_requires_columns() -> None:
+    """Missing required columns should raise a validation error."""
+    tz = ZoneInfo("Asia/Kolkata")
+    df = pd.DataFrame(
+        {
+            "timestamp": [datetime(2024, 1, 1, 9, 15, tzinfo=tz)],
+            "open": [1.0],
+            "high": [1.0],
+            "low": [1.0],
+        }
+    )
+
+    with pytest.raises(ValueError, match="Missing required columns"):
+        generate_signal_states(df, atr_period=2, sensitivity=1)
