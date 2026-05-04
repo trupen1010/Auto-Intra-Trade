@@ -32,10 +32,8 @@ class ExitReason(StrEnum):
     """Allowed reasons for closing an active trade."""
 
     HARD_SL = "HARD_SL"
-    SIGNAL_5M = "SIGNAL_5M"
-    SIGNAL_15M = "SIGNAL_15M"
     TIME_EXIT = "TIME_EXIT"
-    DATA_ERROR = "DATA_ERROR"
+    SIGNAL_EXIT = "SIGNAL_EXIT"
 
 
 class Timeframe(StrEnum):

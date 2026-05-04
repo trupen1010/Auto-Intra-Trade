@@ -7,7 +7,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from src.models.candle import Candle
-from src.models.trade import RejectedTrade, Trade
+from src.models.trade_legacy import RejectedTrade, Trade
 
 IST = ZoneInfo("Asia/Kolkata")
 

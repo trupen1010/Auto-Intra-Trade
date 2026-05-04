@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from src.models.signal import SignalState
 from src.models.candle import Candle
 from src.models.config_models import ChargesConfig, ExecutionConfig
-from src.models.trade import Trade
+from src.models.trade_legacy import Trade
 from src.utils.enums import EntryTF, ExitReason, TradeSide
 
 IST = ZoneInfo("Asia/Kolkata")
