@@ -14,8 +14,10 @@ class MtfAlignment:
     """Represents 1D bias and 15m signal alignment as of a 5m timestamp.
 
     Attributes:
-        bias_1d: Most recent 1D signal side strictly before the 5m timestamp.
-        signal_15m: Most recent 15m signal side strictly before the 5m timestamp.
+        bias_1d: Most recent 1D signal side from a fully closed bar
+            (``close_time <= as_of``).
+        signal_15m: Most recent 15m signal side from a fully closed bar
+            (``close_time <= as_of``).
         aligned: True when both sides match and are non-neutral.
         as_of: The 5m timestamp used for resolving state.
     """

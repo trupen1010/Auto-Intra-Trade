@@ -11,7 +11,7 @@ from datetime import datetime
 from src.models.candle import Candle
 from src.models.mtf_alignment import MtfAlignment
 from src.models.signal_state import SignalTransition
-from src.utils.datetime_utils import validate_ist_datetime
+from src.utils.datetime_utils import candle_close_time, validate_ist_datetime
 from src.utils.enums import SignalSide
 
 
@@ -25,8 +25,11 @@ def resolve_mtf_alignment(
     """Resolve 1D/15m alignment as of an open 5m bar.
 
     Anti-lookahead rule:
-        Only use higher-timeframe candles and transitions where the
-        candle.timestamp is strictly less than the provided 5m timestamp.
+        Only use higher-timeframe candles and transitions where the candle's
+        *close* time is less than or equal to the provided 5m timestamp
+        (``candle_close_time(candle) <= ts_5m``). A bar is eligible only
+        after it is fully closed; same-close-time bars are included (inclusive
+        boundary).
 
     Args:
         ts_5m: Timestamp of the currently open 5m bar.
@@ -74,7 +77,7 @@ def _latest_side_before(
     latest_side = SignalSide.NEUTRAL
 
     for candle, transition in zip(candles, transitions, strict=True):
-        if candle.timestamp >= as_of:
+        if candle_close_time(candle.timestamp, candle.timeframe) > as_of:
             break
         latest_side = transition.side
 
