@@ -1,4 +1,11 @@
-"""Domain models for executed and rejected trades."""
+"""Documented domain Trade model.
+
+This module contains the canonical :class:`Trade` dataclass used for
+persistence (SQLite) and reporting throughout the backtest engine.
+
+For the lightweight engine-internal trade state used during the simulation
+loop see :class:`~src.engine.trade_state.EngineTradeState`.
+"""
 
 from __future__ import annotations
 
@@ -6,12 +13,38 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from src.utils.datetime_utils import validate_ist_datetime
-from src.utils.enums import EntryTF, ExitReason, Timeframe, TradeSide
+from src.utils.enums import EntryTF, ExitReason, TradeSide
 
 
 @dataclass(slots=True)
 class Trade:
-    """Represents one full trade lifecycle in the backtest."""
+    """Represents one full trade lifecycle in the persistence layer.
+
+    Attributes:
+        trade_id: Unique identifier for the trade, scoped to a run.
+        symbol: Instrument symbol.
+        side: LONG or SHORT.
+        entry_tf: Timeframe that originated the entry signal.
+        entry_signal_time: Candle close time when entry signal fired.
+        entry_time: Actual execution time of entry.
+        entry_signal_price: Close price at the entry signal candle.
+        entry_price: Executed entry price (post-slippage).
+        quantity: Number of shares/units traded.
+        hard_stop_price: Hard stop-loss price computed at entry.
+        exit_signal_time: Candle close time when exit signal fired.
+        exit_time: Actual execution time of exit.
+        exit_signal_price: Close price at the exit signal candle.
+        exit_price: Executed exit price (post-slippage).
+        exit_reason: Reason the trade was closed.
+        charges: Total round-trip charges in rupees.
+        gross_pnl: Gross profit/loss before charges.
+        net_pnl: Net profit/loss after charges.
+        capital_before_trade: Available capital before this trade.
+        capital_after_trade: Available capital after this trade.
+        state_1d_at_entry: 1D signal state string captured at entry.
+        state_15m_at_entry: 15m signal state string captured at entry.
+        state_5m_at_entry: 5m signal state string captured at entry.
+    """
 
     trade_id: str
     symbol: str
@@ -38,10 +71,10 @@ class Trade:
     state_5m_at_entry: str = ""
 
     def __post_init__(self) -> None:
-        """Validate datetime fields after initialization.
+        """Validate and coerce enum fields after initialization.
 
         Raises:
-            ValueError: If any datetime field is invalid.
+            ValueError: If any constrained field is invalid.
         """
         try:
             self.side = TradeSide(self.side)
@@ -61,32 +94,8 @@ class Trade:
 
         validate_ist_datetime(self.entry_signal_time, "entry_signal_time")
         validate_ist_datetime(self.entry_time, "entry_time")
-
         if self.exit_signal_time is not None:
             validate_ist_datetime(self.exit_signal_time, "exit_signal_time")
-
         if self.exit_time is not None:
             validate_ist_datetime(self.exit_time, "exit_time")
 
-
-@dataclass(slots=True)
-class RejectedTrade:
-    """Represents a trade attempt rejected before entry."""
-
-    symbol: str
-    timestamp: datetime
-    timeframe: str
-    requested_side: str
-    reason: str
-
-    def __post_init__(self) -> None:
-        """Validate rejected trade fields after initialization.
-
-        Raises:
-            ValueError: If timeframe is unsupported or timestamp is invalid.
-        """
-        valid_timeframes = {tf.value for tf in Timeframe}
-        if self.timeframe not in valid_timeframes:
-            raise ValueError(f"Unsupported timeframe: {self.timeframe}")
-
-        validate_ist_datetime(self.timestamp, "timestamp")

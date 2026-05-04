@@ -13,7 +13,8 @@ from src.db.repository import CandleRepository, TradeRepository
 from src.db.schema import create_all_tables
 from src.db.sqlite_service import connection_context, get_connection
 from src.models.candle import Candle
-from src.models.trade import RejectedTrade, Trade
+from src.models.rejected_trade import RejectedTrade
+from src.models.trade import Trade
 from src.utils.enums import EntryTF, ExitReason, TradeSide
 
 IST = ZoneInfo("Asia/Kolkata")
