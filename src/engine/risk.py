@@ -29,7 +29,9 @@ def compute_position_size(
         hard_sl_price: Hard stop-loss price.
 
     Returns:
-        The computed quantity, at least 1.
+        The computed quantity (may be 0 when the risk amount is smaller than
+        the cost of a single share's SL distance — callers must reject trades
+        with quantity == 0 and log them).
 
     Raises:
         ValueError: If ``capital <= 0`` or ``risk_pct <= 0``.
@@ -46,7 +48,7 @@ def compute_position_size(
 
     risk_amount = capital * risk_pct
     raw_qty = risk_amount / sl_distance
-    return max(1, math.floor(raw_qty))
+    return math.floor(raw_qty)
 
 
 def compute_hard_sl(
@@ -68,9 +70,12 @@ def compute_hard_sl(
 
     Raises:
         ValueError: If ``atr <= 0``.
+        ValueError: If ``sl_atr_multiplier <= 0``.
     """
     if atr <= 0:
         raise ValueError("atr must be > 0")
+    if sl_atr_multiplier <= 0:
+        raise ValueError("sl_atr_multiplier must be > 0")
 
     direction = SignalSide(direction)
     offset = atr * sl_atr_multiplier
