@@ -5,12 +5,16 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import sqlite3
 import sys
 from datetime import date
 from pathlib import Path
 
+from src.data.upstox_client import UpstoxClient
 from src.engine.exceptions import ExecutionError
 from src.engine.runner import run_backtest
+from src.upstox.auth import UpstoxTokenStore
+from src.upstox.ingester import ingest_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +51,81 @@ def _load_config(config_path: str) -> dict:
         raise ValueError(f"Config file not found: {config_path}")
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in config file: {e}")
+
+
+def _run_command(args: argparse.Namespace) -> int:
+    """Execute 'run' backtest command."""
+    start_date = _parse_date(args.start_date)
+    end_date = _parse_date(args.end_date)
+    config_dict = _load_config(args.config)
+
+    logger.info(f"Running backtest: {args.symbol} ({start_date} to {end_date})")
+    result, output_dir = run_backtest(
+        symbol=args.symbol,
+        start_date=start_date,
+        end_date=end_date,
+        config_dict=config_dict,
+        db_path=args.db,
+    )
+
+    net_pnl = sum(t.net_pnl for t in result.trades if t.net_pnl is not None)
+
+    print()
+    print("=" * 60)
+    print("BACKTEST COMPLETE")
+    print("=" * 60)
+    print(f"Run ID:        {result.run_id}")
+    print(f"Symbol:        {args.symbol}")
+    print(f"Total trades:  {len(result.trades)}")
+    print(f"Rejected:      {len(result.rejected_trades)}")
+    print(f"Net PnL:       ₹{net_pnl:,.2f}")
+    print(f"Output dir:    {output_dir}")
+    print("=" * 60)
+    print()
+
+    return 0
+
+
+def _ingest_command(args: argparse.Namespace) -> int:
+    """Execute 'ingest' candle ingestion command."""
+    token_store = UpstoxTokenStore(args.token_file)
+    token = token_store.load()
+
+    if not token:
+        print("No valid token found. Run: python scripts/get_upstox_token.py", file=sys.stderr)
+        return 1
+
+    client = UpstoxClient(token)
+    start_date = _parse_date(args.start_date)
+    end_date = _parse_date(args.end_date)
+
+    logger.info(f"Ingesting candles for {args.symbol} ({start_date} to {end_date})")
+
+    conn = sqlite3.connect(args.db)
+    try:
+        results = ingest_symbol(
+            symbol=args.symbol,
+            instrument_key=args.instrument_key,
+            timeframes=["1d", "15m", "5m"],
+            start_date=start_date,
+            end_date=end_date,
+            client=client,
+            conn=conn,
+        )
+    finally:
+        conn.close()
+
+    print()
+    print("=" * 60)
+    print("INGESTION COMPLETE")
+    print("=" * 60)
+    print(f"Symbol:  {args.symbol}")
+    for tf, count in results.items():
+        print(f"  {tf:3s}: {count} candles")
+    print("=" * 60)
+    print()
+
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -105,6 +184,54 @@ def main(argv: list[str] | None = None) -> int:
         help="Enable DEBUG-level logging",
     )
 
+    # 'ingest' command
+    ingest_parser = subparsers.add_parser("ingest", help="Ingest candles from Upstox API")
+    ingest_parser.add_argument(
+        "--symbol",
+        required=True,
+        type=str,
+        help="Trading symbol (e.g., NIFTY, SBIN)",
+    )
+    ingest_parser.add_argument(
+        "--instrument-key",
+        required=True,
+        type=str,
+        help="Upstox instrument key (e.g., NSE_INDEX|Nifty 50)",
+    )
+    ingest_parser.add_argument(
+        "--start-date",
+        required=True,
+        type=str,
+        help="Start date in ISO format (YYYY-MM-DD)",
+    )
+    ingest_parser.add_argument(
+        "--end-date",
+        required=True,
+        type=str,
+        help="End date in ISO format (YYYY-MM-DD)",
+    )
+    ingest_parser.add_argument(
+        "--db",
+        required=True,
+        type=str,
+        help="Path to SQLite database file",
+    )
+    ingest_parser.add_argument(
+        "--token-file",
+        default="config/upstox_token.json",
+        help="Path to token file (default: config/upstox_token.json)",
+    )
+    ingest_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable INFO-level logging",
+    )
+    ingest_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable DEBUG-level logging",
+    )
+
     args = parser.parse_args(argv)
 
     if not args.command:
@@ -112,43 +239,23 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
-        _setup_logging(args.verbose, args.debug)
+        verbose = getattr(args, "verbose", False)
+        debug = getattr(args, "debug", False)
+        _setup_logging(verbose, debug)
 
-        start_date = _parse_date(args.start_date)
-        end_date = _parse_date(args.end_date)
-        config_dict = _load_config(args.config)
-
-        logger.info(f"Running backtest: {args.symbol} ({start_date} to {end_date})")
-        result, output_dir = run_backtest(
-            symbol=args.symbol,
-            start_date=start_date,
-            end_date=end_date,
-            config_dict=config_dict,
-            db_path=args.db,
-        )
-
-        net_pnl = sum(t.net_pnl for t in result.trades if t.net_pnl is not None)
-
-        print()
-        print("=" * 60)
-        print("BACKTEST COMPLETE")
-        print("=" * 60)
-        print(f"Run ID:        {result.run_id}")
-        print(f"Symbol:        {args.symbol}")
-        print(f"Total trades:  {len(result.trades)}")
-        print(f"Rejected:      {len(result.rejected_trades)}")
-        print(f"Net PnL:       ₹{net_pnl:,.2f}")
-        print(f"Output dir:    {output_dir}")
-        print("=" * 60)
-        print()
-
-        return 0
+        if args.command == "run":
+            return _run_command(args)
+        elif args.command == "ingest":
+            return _ingest_command(args)
+        else:
+            parser.print_help()
+            return 1
 
     except (ValueError, ExecutionError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
     except Exception as e:
-        logger.exception("Unexpected error during backtest")
+        logger.exception("Unexpected error")
         print(f"Unexpected error: {e}", file=sys.stderr)
         return 1
 
