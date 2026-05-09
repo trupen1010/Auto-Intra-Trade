@@ -35,6 +35,7 @@ class BacktestConfig:  # pragma: no cover
     initial_capital: float
     risk_per_trade_pct: float
     sl_atr_multiplier: float
+    entry_cutoff_time: time
     session_end_time: time
     atr_values_5m: list[float]
     trailing_stop_5m: list[float | None]
@@ -80,6 +81,7 @@ def _compute_round_trip_charges(
 def run_simulation(
     candles_5m: list[Candle],
     signals_5m: list[SignalTransition],
+    signals_15m: list[SignalTransition],
     mtf_alignments: list[MtfAlignment],
     config: BacktestConfig,
 ) -> SimulationResult:
@@ -88,6 +90,7 @@ def run_simulation(
     Args:
         candles_5m: Ordered 5m candles (timestamp is candle open time).
         signals_5m: Per-bar signal transitions for 5m candles.
+        signals_15m: Per-bar signal transitions for 15m candles (mapped to 5m grid).
         mtf_alignments: Per-bar 1D/15m alignment snapshots resolved as-of each
             5m candle timestamp.
         config: Backtest configuration produced by the orchestration layer.
@@ -101,8 +104,8 @@ def run_simulation(
         ValueError: If input list lengths do not match.
     """
 
-    if not (len(candles_5m) == len(signals_5m) == len(mtf_alignments)):
-        raise ValueError("candles_5m, signals_5m, and mtf_alignments must match length")
+    if not (len(candles_5m) == len(signals_5m) == len(signals_15m) == len(mtf_alignments)):
+        raise ValueError("candles_5m, signals_5m, signals_15m, and mtf_alignments must match length")
 
     trades: list[EngineTradeState] = []
     rejected_trades: list[RejectedTrade] = []
@@ -112,7 +115,8 @@ def run_simulation(
     session_end_time = config.session_end_time
 
     for index, candle in enumerate(candles_5m):
-        signal = signals_5m[index]
+        signal_5m = signals_5m[index]
+        signal_15m = signals_15m[index]
         alignment = mtf_alignments[index]
 
         if alignment.as_of != candle.timestamp:
@@ -172,19 +176,27 @@ def run_simulation(
                     open_position = None
                     exit_happened = True
 
-            if not exit_happened and signal.is_fresh:
-                if (
-                    open_position.trade.direction == SignalSide.BUY
-                    and signal.side == SignalSide.SELL
-                ) or (
-                    open_position.trade.direction == SignalSide.SELL
-                    and signal.side == SignalSide.BUY
-                ):
+            if not exit_happened:
+                exit_signal_5m = (
+                    signal_5m.is_fresh
+                    and (
+                        (open_position.trade.direction == SignalSide.BUY and signal_5m.side == SignalSide.SELL)
+                        or (open_position.trade.direction == SignalSide.SELL and signal_5m.side == SignalSide.BUY)
+                    )
+                )
+                exit_signal_15m = (
+                    signal_15m.is_fresh
+                    and (
+                        (open_position.trade.direction == SignalSide.BUY and signal_15m.side == SignalSide.SELL)
+                        or (open_position.trade.direction == SignalSide.SELL and signal_15m.side == SignalSide.BUY)
+                    )
+                )
+                if exit_signal_5m or exit_signal_15m:
                     if index + 1 < len(candles_5m):
                         exit_price = candles_5m[index + 1].open
                     else:
                         exit_price = candle.close
-                    exit_reason = ExitReason.SIGNAL_EXIT
+                    exit_reason = ExitReason.SIGNAL_5M if exit_signal_5m else ExitReason.SIGNAL_15M
                     exit_time = candle.timestamp
                     charges = _compute_round_trip_charges(
                         entry_price=open_position.trade.entry_price,
@@ -206,23 +218,26 @@ def run_simulation(
         if exit_happened:
             last_exit_bar_index = index
 
-        # B) ENTRY CHECK.
+        # B) ENTRY CHECK (check 15m first, then 5m).
         if open_position is None:
             if exit_happened:
                 pass
-            elif not signal.is_fresh:
-                pass
-            elif not alignment.aligned:
+            elif candle.timestamp >= _session_end_dt(candle.timestamp, config.entry_cutoff_time):
                 pass
             elif index + 1 >= len(candles_5m):
                 pass
+            elif last_exit_bar_index is not None and last_exit_bar_index == index:
+                pass
             else:
-                direction = signal.side
-                if direction == SignalSide.NEUTRAL:
-                    pass
-                elif last_exit_bar_index is not None and last_exit_bar_index == index:
-                    pass
-                else:
+                entry_tf: EntryTF | None = None
+                direction: SignalSide | None = None
+                if signal_15m.is_fresh and alignment.aligned and signal_15m.side != SignalSide.NEUTRAL:
+                    entry_tf = EntryTF.FIFTEEN_MINUTE
+                    direction = signal_15m.side
+                elif signal_5m.is_fresh and alignment.aligned and signal_5m.side != SignalSide.NEUTRAL:
+                    entry_tf = EntryTF.FIVE_MINUTE
+                    direction = signal_5m.side
+                if entry_tf is not None and direction is not None:
                     entry_price = candles_5m[index + 1].open
                     atr_at_index = config.atr_values_5m[index]
                     hard_sl = compute_hard_sl(
@@ -253,7 +268,7 @@ def run_simulation(
                         trade = EngineTradeState(
                             run_id=config.run_id,
                             symbol=config.symbol,
-                            timeframe_entry=EntryTF.FIVE_MINUTE,
+                            timeframe_entry=entry_tf,
                             direction=direction,
                             entry_time=candles_5m[index + 1].timestamp,
                             entry_price=entry_price,
