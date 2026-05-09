@@ -1,0 +1,18 @@
+{
+  "initial_capital": 500000,
+  "risk_per_trade_pct": 0.01,
+  "sl_atr_multiplier": 1.5,
+  "atr_period": 14,
+  "atr_sensitivity": 1,
+  "entry_cutoff_time": "15:00",
+  "session_end_time": "15:15",
+  "charges": {
+    "brokerage_pct": 0.0003,
+    "brokerage_cap_per_order": 20.0,
+    "stt_sell_pct": 0.00025,
+    "transaction_pct": 0.0000345,
+    "sebi_pct": 0.000001,
+    "gst_pct": 0.18,
+    "stamp_duty_buy_pct": 0.00015
+  }
+}

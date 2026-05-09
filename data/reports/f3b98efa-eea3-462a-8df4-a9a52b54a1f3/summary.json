@@ -1,0 +1,19 @@
+{
+  "run_id": "f3b98efa-eea3-462a-8df4-a9a52b54a1f3",
+  "symbol": "TESTSTOCK",
+  "start_date": "2024-01-01",
+  "end_date": "2024-01-03",
+  "total_trades": 0,
+  "winning_trades": 0,
+  "losing_trades": 0,
+  "win_rate_pct": 0.0,
+  "gross_pnl": 0.0,
+  "total_charges": 0.0,
+  "net_pnl": 0.0,
+  "max_drawdown": 0.0,
+  "avg_trade_pnl": 0.0,
+  "largest_win": 0.0,
+  "largest_loss": 0.0,
+  "initial_capital": 100000.0,
+  "final_capital": 100000.0
+}

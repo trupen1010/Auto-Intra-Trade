@@ -1,0 +1,22 @@
+{
+  "run_id": "280f07b4-b500-4b5c-ae85-d44ae0a72d94",
+  "symbol": "TESTSTOCK",
+  "start_date": "2024-01-01",
+  "end_date": "2024-01-03",
+  "initial_capital": 100000.0,
+  "risk_per_trade_pct": 0.01,
+  "sl_atr_multiplier": 2.0,
+  "atr_period": 3,
+  "atr_sensitivity": 2,
+  "entry_cutoff_time": "15:10:00",
+  "session_end_time": "15:30:00",
+  "charges": {
+    "brokerage_pct": 0.0003,
+    "brokerage_cap_per_order": 20.0,
+    "stt_sell_pct": 0.00025,
+    "transaction_pct": 3.45e-05,
+    "sebi_pct": 1e-06,
+    "gst_pct": 0.18,
+    "stamp_duty_buy_pct": 3e-05
+  }
+}

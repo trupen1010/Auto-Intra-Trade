@@ -128,7 +128,7 @@ def test_run_backtest_with_valid_config() -> None:
 
         # Run backtest using runner.
         config_dict = _ConfigDict().to_dict()
-        result = run_backtest(
+        result, output_dir = run_backtest(
             symbol="TESTSTOCK",
             start_date=date(2024, 1, 1),
             end_date=date(2024, 1, 3),
@@ -139,6 +139,8 @@ def test_run_backtest_with_valid_config() -> None:
         assert result is not None
         assert isinstance(result.trades, list)
         assert isinstance(result.rejected_trades, list)
+        assert isinstance(output_dir, str)
+        assert "TESTSTOCK" not in output_dir  # run_id is UUID, not symbol
 
     finally:
         import os
