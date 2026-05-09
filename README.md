@@ -16,7 +16,29 @@ A Python 3.12+ backtest engine for testing intraday multi-timeframe trading stra
 pip install -r requirements.txt
 ```
 
-### 2. Run a Backtest
+### 2. Ingest Candles from Upstox API
+
+First-time setup: Authorize and store token
+
+```bash
+python scripts/get_upstox_token.py
+```
+
+Then ingest historical candles:
+
+```bash
+python -m src.main ingest \
+  --symbol NIFTY \
+  --instrument-key "NSE_INDEX|Nifty 50" \
+  --start-date 2024-01-01 \
+  --end-date 2024-03-31 \
+  --db data/candles.db \
+  --token-file config/upstox_token.json
+```
+
+This fetches 1D, 15m, and 5m candles and stores them in the SQLite database.
+
+### 3. Run a Backtest
 
 ```bash
 python -m src.main run \
@@ -27,7 +49,7 @@ python -m src.main run \
   --db data/candles.db
 ```
 
-### 3. View Results
+### 4. View Results
 
 Backtest results are written to `data/reports/{run_id}/`:
 - **trades.csv** — Closed trades with entry/exit details and PnL
@@ -35,7 +57,28 @@ Backtest results are written to `data/reports/{run_id}/`:
 - **summary.json** — Run-level statistics (win rate, max drawdown, final capital)
 - **config_snapshot.json** — Configuration snapshot (excludes runtime arrays)
 
-## CLI Options
+## CLI Commands
+
+### `ingest` — Download candles from Upstox API
+
+```
+usage: auto-intra-trade ingest [options]
+
+required arguments:
+  --symbol SYMBOL          Trading symbol (e.g., NIFTY, SBIN)
+  --instrument-key KEY     Upstox instrument key (e.g., NSE_INDEX|Nifty 50)
+  --start-date DATE        Start date in ISO format (YYYY-MM-DD)
+  --end-date DATE          End date in ISO format (YYYY-MM-DD)
+  --db PATH                Path to SQLite database file
+
+optional arguments:
+  --token-file PATH        Path to token file (default: config/upstox_token.json)
+  --verbose                Enable INFO-level logging
+  --debug                  Enable DEBUG-level logging
+  -h, --help               Show help message
+```
+
+### `run` — Execute a backtest
 
 ```
 usage: auto-intra-trade run [options]
@@ -53,7 +96,21 @@ optional arguments:
   -h, --help               Show help message
 ```
 
-### Example with Logging
+### Examples
+
+**Ingest with logging:**
+
+```bash
+python -m src.main ingest \
+  --symbol NIFTY \
+  --instrument-key "NSE_INDEX|Nifty 50" \
+  --start-date 2024-01-01 \
+  --end-date 2024-03-31 \
+  --db data/candles.db \
+  --verbose
+```
+
+**Backtest with logging:**
 
 ```bash
 python -m src.main run \
