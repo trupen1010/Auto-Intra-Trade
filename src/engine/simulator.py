@@ -14,6 +14,7 @@ from src.engine.charges import calculate_round_trip_charges
 from src.engine.position import OpenPosition
 from src.engine.risk import compute_hard_sl, compute_position_size
 from src.engine.trade_state import EngineTradeState
+from src.models.backtest_config import BacktestConfig
 from src.models.candle import Candle
 from src.models.mtf_alignment import MtfAlignment
 from src.models.rejected_trade import RejectedTrade
@@ -21,25 +22,6 @@ from src.models.signal_state import SignalTransition
 from src.models.simulation_result import SimulationResult
 from src.utils.datetime_utils import validate_ist_datetime
 from src.utils.enums import EntryTF, ExitReason, SignalSide
-
-
-class BacktestConfig:  # pragma: no cover
-    """Protocol-like stub for type checking.
-
-    The real configuration model is defined in a later step. This stub keeps
-    the simulator strongly typed without introducing a runtime dependency.
-    """
-
-    run_id: str
-    symbol: str
-    initial_capital: float
-    risk_per_trade_pct: float
-    sl_atr_multiplier: float
-    entry_cutoff_time: time
-    session_end_time: time
-    atr_values_5m: list[float]
-    trailing_stop_5m: list[float | None]
-    charges: object
 
 
 def _session_end_dt(bar_time: datetime, session_end_time: object) -> datetime:

@@ -19,6 +19,7 @@ from src.indicators.atr import compute_atr
 from src.indicators.mtf_state import resolve_mtf_alignment
 from src.indicators.signals import detect_signals
 from src.indicators.trailing_stop import compute_trailing_stop
+from src.models.backtest_config import BacktestConfig
 from src.models.signal_state import SignalTransition
 from src.models.simulation_result import SimulationResult
 from src.utils.datetime_utils import candle_close_time
@@ -28,30 +29,11 @@ logger = logging.getLogger(__name__)
 IST = ZoneInfo("Asia/Kolkata")
 
 
-class ExecutorConfig:
-    """Protocol-like stub for backtest configuration.
-
-    The real configuration model is defined upstream. This stub keeps
-    the executor strongly typed without introducing a runtime dependency.
-    """
-
-    run_id: str
-    symbol: str
-    initial_capital: float
-    risk_per_trade_pct: float
-    sl_atr_multiplier: float
-    entry_cutoff_time: object
-    session_end_time: object
-    atr_period: int
-    atr_sensitivity: int
-    charges: object
-
-
 def execute_backtest(
     symbol: str,
     start_date: date,
     end_date: date,
-    config: ExecutorConfig,
+    config: BacktestConfig,
     conn: sqlite3.Connection,
 ) -> SimulationResult:
     """Execute a complete candle-by-candle backtest simulation.
@@ -163,6 +145,8 @@ def execute_backtest(
         )
         return result
 
+    except ExecutionError:
+        raise
     except Exception as e:
         msg = f"Backtest execution failed: {e}"
         logger.exception(msg)
