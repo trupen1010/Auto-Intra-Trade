@@ -109,6 +109,11 @@ The `src/upstox/` module is **completely isolated from the backtest engine**. Da
 
 **The engine never imports from src/upstox/.**
 
+**Upstox V3 API constraints:**
+- **1D candles**: Max 10 years per request, data available from January 2000
+- **15m candles**: Max 1 month per request, data available from January 2022
+- **5m candles**: Max 1 month per request, data available from January 2022
+
 Ingestion pipeline:
 ```
 Upstox API (HTTP)
@@ -116,11 +121,12 @@ Upstox API (HTTP)
 UpstoxClient.fetch_historical_candles() [HTTP adapter, no business logic]
       ↓
 ingest_symbol() [orchestrate three timeframes: 1d, 15m, 5m]
-      ↓
-For each timeframe:
-  1. transform_candles() [raw API dict → Candle domain model]
-  2. validate_candle_sequence() [schema, gaps, market hours]
-  3. CandleRepository.insert_candles() [upsert to SQLite]
+      ├─ For each timeframe:
+      │  1. _generate_date_chunks() [split date range respecting API limits]
+      │  2. For each chunk:
+      │     a. transform_candles() [raw API dict → Candle domain model]
+      │     b. validate_candle_sequence() [schema, gaps, market hours]
+      │     c. CandleRepository.insert_candles() [upsert to SQLite]
       ↓
 Returns: dict[timeframe -> candle_count]
 ```
@@ -130,13 +136,27 @@ Returns: dict[timeframe -> candle_count]
 - `scripts/get_upstox_token.py`: Standalone script for browser-based authorization flow
 - Token stored as: `{ "access_token": "...", "expires_at": "ISO8601" }`
 
-**CLI entry point:**
+**CLI entry points:**
+
+Fetch specific date range:
 ```bash
 python -m src.main ingest \
   --symbol NIFTY --instrument-key "NSE_INDEX|Nifty 50" \
   --start-date 2024-01-01 --end-date 2024-03-31 \
   --db data/candles.db --token-file config/upstox_token.json
 ```
+
+Fetch all available historical data (with automatic chunking):
+```bash
+python -m src.main ingest \
+  --symbol NIFTY --instrument-key "NSE_INDEX|Nifty 50" \
+  --start-date 2024-01-01 --end-date 2024-03-31 \
+  --db data/candles.db --fetch-all
+```
+
+The `--fetch-all` flag automatically extends the date range:
+- 1D: January 2000 → today
+- 15m/5m: January 2022 → today
 
 ### Module Contracts (See `.github/copilot-instructions.md` § 7 for complete list)
 

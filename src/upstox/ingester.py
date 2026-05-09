@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 from time import sleep
 
 from src.data.upstox_client import UpstoxClient
@@ -23,6 +23,53 @@ _TIMEFRAME_TO_INTERVAL = {
 
 _REQUEST_DELAY_SECONDS = 0.25  # Rate limit: ~250 req/min
 
+# Upstox V3 API constraints: max data per request
+_API_LIMITS = {
+    "1d": {"days": 3650},  # ~10 years
+    "15m": {"days": 30},  # 1 month
+    "5m": {"days": 30},  # 1 month
+}
+
+# Data availability in Upstox V3
+_DATA_AVAILABILITY = {
+    "1d": date(2000, 1, 1),
+    "15m": date(2022, 1, 1),
+    "5m": date(2022, 1, 1),
+}
+
+
+def _generate_date_chunks(
+    timeframe: str, start_date: date, end_date: date
+) -> list[tuple[date, date]]:
+    """Generate (from_date, to_date) chunks respecting API limits.
+
+    Args:
+        timeframe: "1d", "15m", or "5m".
+        start_date: Inclusive start date.
+        end_date: Inclusive end date.
+
+    Returns:
+        List of (from_date, to_date) tuples, sorted chronologically ascending.
+    """
+    if timeframe not in _API_LIMITS:
+        raise ValueError(f"Unsupported timeframe: {timeframe}")
+
+    max_days = _API_LIMITS[timeframe]["days"]
+    chunks = []
+
+    # Build chunks from end_date backwards to start_date
+    current_to = end_date
+    while current_to >= start_date:
+        current_from = current_to - timedelta(days=max_days)
+        if current_from < start_date:
+            current_from = start_date
+        chunks.append((current_from, current_to))
+        current_to = current_from - timedelta(days=1)
+
+    # Reverse to chronological order (oldest to newest)
+    chunks.reverse()
+    return chunks
+
 
 def ingest_symbol(
     symbol: str,
@@ -32,11 +79,12 @@ def ingest_symbol(
     end_date: date,
     client: UpstoxClient,
     conn: sqlite3.Connection,
+    fetch_all_available: bool = False,
 ) -> dict[str, int]:
     """Ingest candles for a symbol across multiple timeframes.
 
     For each timeframe:
-      1. Fetch historical candles from Upstox API
+      1. Fetch historical candles (in chunks if needed) from Upstox API
       2. Transform to Candle domain models
       3. Validate sequence integrity
       4. Upsert into SQLite database
@@ -50,6 +98,8 @@ def ingest_symbol(
         end_date: Inclusive end date for candle fetch.
         client: UpstoxClient instance for API calls.
         conn: Open SQLite connection (caller manages lifecycle).
+        fetch_all_available: If True, fetch all available data from earliest date.
+            If False, fetch only data between start_date and end_date.
 
     Returns:
         Dictionary mapping timeframe -> candles_ingested count.
@@ -64,21 +114,49 @@ def ingest_symbol(
     for timeframe in timeframes:
         logger.info(f"Fetching {timeframe} candles for {symbol}...")
 
-        try:
-            raw_candles = client.fetch_historical_candles(
-                symbol=instrument_key,
-                timeframe=timeframe,
-                from_date=start_date,
-                to_date=end_date,
-            )
-        except Exception as e:
-            logger.warning(f"  Skipped {timeframe}: API unavailable ({type(e).__name__})")
+        # Determine fetch range
+        if fetch_all_available:
+            fetch_start = _DATA_AVAILABILITY.get(timeframe, start_date)
+            fetch_end = end_date
+        else:
+            fetch_start = start_date
+            fetch_end = end_date
+
+        # Generate date chunks respecting API limits
+        chunks = _generate_date_chunks(timeframe, fetch_start, fetch_end)
+        logger.info(f"  Will fetch in {len(chunks)} chunk(s)")
+
+        all_raw_candles = []
+
+        # Fetch each chunk
+        for chunk_idx, (chunk_from, chunk_to) in enumerate(chunks, 1):
+            logger.info(f"  Chunk {chunk_idx}/{len(chunks)}: {chunk_from} to {chunk_to}")
+
+            try:
+                raw_candles = client.fetch_historical_candles(
+                    symbol=instrument_key,
+                    timeframe=timeframe,
+                    from_date=chunk_from,
+                    to_date=chunk_to,
+                )
+                all_raw_candles.extend(raw_candles)
+                logger.info(f"    Received {len(raw_candles)} raw candles")
+            except Exception as e:
+                logger.warning(
+                    f"    Chunk {chunk_idx} skipped: API unavailable ({type(e).__name__})"
+                )
+                sleep(_REQUEST_DELAY_SECONDS)
+                continue
+
             sleep(_REQUEST_DELAY_SECONDS)
+
+        if not all_raw_candles:
+            logger.warning(f"  Skipped {timeframe}: No candles fetched")
             continue
 
-        logger.info(f"  Received {len(raw_candles)} raw candles")
+        logger.info(f"  Total: {len(all_raw_candles)} raw candles across all chunks")
 
-        candles = transform_candles(raw_candles, symbol, timeframe)
+        candles = transform_candles(all_raw_candles, symbol, timeframe)
         logger.info(f"  Transformed to {len(candles)} Candle domain models")
 
         validate_candle_sequence(candles, timeframe, symbol)
@@ -88,7 +166,5 @@ def ingest_symbol(
         logger.info(f"  Inserted {len(candles)} candles into database")
 
         results[timeframe] = len(candles)
-
-        sleep(_REQUEST_DELAY_SECONDS)
 
     return results

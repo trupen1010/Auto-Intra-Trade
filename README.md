@@ -73,10 +73,33 @@ required arguments:
 
 optional arguments:
   --token-file PATH        Path to token file (default: config/upstox_token.json)
+  --fetch-all              Fetch all available data from earliest date (ignores --start-date)
   --verbose                Enable INFO-level logging
   --debug                  Enable DEBUG-level logging
   -h, --help               Show help message
 ```
+
+#### Fetching Historical Data
+
+By default, the ingest command fetches candles for the specified date range. To fetch all available historical data:
+
+```bash
+python -m src.main ingest \
+  --symbol NIFTY \
+  --instrument-key "NSE_INDEX|Nifty 50" \
+  --start-date 2024-01-01 \
+  --end-date 2026-05-09 \
+  --db data/candles.db \
+  --fetch-all
+```
+
+When `--fetch-all` is used:
+- **1D candles**: Fetched from January 2000 to today (in ~10-year chunks)
+- **15m & 5m candles**: Fetched from January 2022 to today (in monthly chunks)
+
+This respects Upstox V3 API constraints:
+- 1D: Max 10 years per request
+- 15m/5m: Max 1 month per request
 
 ### `run` — Execute a backtest
 

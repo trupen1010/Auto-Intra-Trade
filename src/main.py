@@ -7,7 +7,7 @@ import json
 import logging
 import sqlite3
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from src.data.upstox_client import UpstoxClient
@@ -99,8 +99,12 @@ def _ingest_command(args: argparse.Namespace) -> int:
     client = UpstoxClient(token)
     start_date = _parse_date(args.start_date)
     end_date = _parse_date(args.end_date)
+    fetch_all = getattr(args, "fetch_all", False)
 
-    logger.info(f"Ingesting candles for {args.symbol} ({start_date} to {end_date})")
+    if fetch_all:
+        logger.info(f"Ingesting all available candles for {args.symbol}")
+    else:
+        logger.info(f"Ingesting candles for {args.symbol} ({start_date} to {end_date})")
 
     conn = sqlite3.connect(args.db)
     try:
@@ -113,6 +117,7 @@ def _ingest_command(args: argparse.Namespace) -> int:
             end_date=end_date,
             client=client,
             conn=conn,
+            fetch_all_available=fetch_all,
         )
     finally:
         conn.close()
@@ -222,6 +227,11 @@ def main(argv: list[str] | None = None) -> int:
         "--token-file",
         default="config/upstox_token.json",
         help="Path to token file (default: config/upstox_token.json)",
+    )
+    ingest_parser.add_argument(
+        "--fetch-all",
+        action="store_true",
+        help="Fetch all available data from earliest date (ignores --start-date and --end-date)",
     )
     ingest_parser.add_argument(
         "--verbose",
