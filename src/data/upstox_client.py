@@ -15,13 +15,14 @@ class UpstoxClient:
 
     For NSE equities, pass instrument keys in the format ``NSE_EQ|{ISIN}`` as the
     ``symbol`` argument. This client forwards the key as-is and does not validate it.
+    Uses Upstox v3 API endpoint format.
     """
 
-    BASE_URL = "https://api.upstox.com/v2"
-    TIMEFRAME_TO_INTERVAL: dict[str, str] = {
-        "5m": "5minute",
-        "15m": "15minute",
-        "1d": "day",
+    BASE_URL = "https://api.upstox.com/v3"
+    TIMEFRAME_TO_UNIT_INTERVAL: dict[str, tuple[str, int]] = {
+        "5m": ("minutes", 5),
+        "15m": ("minutes", 15),
+        "1d": ("days", 1),
     }
     REQUEST_TIMEOUT_SECONDS = 30
 
@@ -40,7 +41,7 @@ class UpstoxClient:
         from_date: date,
         to_date: date,
     ) -> list[dict]:
-        """Fetch historical candle rows from Upstox v2 API.
+        """Fetch historical candle rows from Upstox v3 API.
 
         Args:
             symbol: Upstox instrument key (e.g. ``NSE_EQ|{ISIN}``).
@@ -56,14 +57,15 @@ class UpstoxClient:
             InsufficientDataError: If API returns no candle rows.
             BacktestEngineError: If request fails or response payload is malformed.
         """
-        interval = self.TIMEFRAME_TO_INTERVAL.get(timeframe)
-        if interval is None:
+        unit_interval = self.TIMEFRAME_TO_UNIT_INTERVAL.get(timeframe)
+        if unit_interval is None:
             raise ValueError(f"Unsupported timeframe: {timeframe}")
 
+        unit, interval = unit_interval
         encoded_symbol = quote(symbol, safe="")
         endpoint = (
             f"{self.BASE_URL}/historical-candle/"
-            f"{encoded_symbol}/{interval}/{to_date.isoformat()}/{from_date.isoformat()}"
+            f"{encoded_symbol}/{unit}/{interval}/{to_date.isoformat()}/{from_date.isoformat()}"
         )
         headers = {"Authorization": f"Bearer {self._access_token}"}
 

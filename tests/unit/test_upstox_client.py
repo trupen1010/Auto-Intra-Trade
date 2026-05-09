@@ -36,7 +36,7 @@ def test_fetch_returns_candle_list_on_success() -> None:
 
     assert len(candles) == 2
     mock_get.assert_called_once_with(
-        "https://api.upstox.com/v2/historical-candle/NSE_EQ%7CINE002A01018/5minute/2026-04-02/2026-04-01",
+        "https://api.upstox.com/v3/historical-candle/NSE_EQ%7CINE002A01018/minutes/5/2026-04-02/2026-04-01",
         headers={"Authorization": "Bearer token"},
         timeout=30,
     )
@@ -157,7 +157,7 @@ def test_fetch_raises_on_invalid_payload_schema() -> None:
 
 
 def test_timeframe_mapping() -> None:
-    """Timeframe map matches required Upstox intervals."""
-    assert UpstoxClient.TIMEFRAME_TO_INTERVAL["5m"] == "5minute"
-    assert UpstoxClient.TIMEFRAME_TO_INTERVAL["15m"] == "15minute"
-    assert UpstoxClient.TIMEFRAME_TO_INTERVAL["1d"] == "day"
+    """Timeframe map matches required Upstox v3 API format."""
+    assert UpstoxClient.TIMEFRAME_TO_UNIT_INTERVAL["5m"] == ("minutes", 5)
+    assert UpstoxClient.TIMEFRAME_TO_UNIT_INTERVAL["15m"] == ("minutes", 15)
+    assert UpstoxClient.TIMEFRAME_TO_UNIT_INTERVAL["1d"] == ("days", 1)
