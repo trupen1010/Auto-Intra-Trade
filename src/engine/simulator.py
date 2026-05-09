@@ -128,12 +128,18 @@ def run_simulation(
         if open_position is not None:
             direction = open_position.trade.direction
             hard_sl = open_position.trade.hard_sl
+            trail_sl = open_position.current_stop
+
+            if direction == SignalSide.BUY:
+                active_stop = max(hard_sl, trail_sl)
+            else:
+                active_stop = min(hard_sl, trail_sl)
 
             hard_sl_hit = (
-                candle.low <= hard_sl if direction == SignalSide.BUY else candle.high >= hard_sl
+                candle.low <= active_stop if direction == SignalSide.BUY else candle.high >= active_stop
             )
             if hard_sl_hit:
-                exit_price = hard_sl
+                exit_price = active_stop
                 exit_reason = ExitReason.HARD_SL
                 exit_time = candle.timestamp
                 charges = _compute_round_trip_charges(

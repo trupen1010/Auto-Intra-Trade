@@ -119,7 +119,7 @@ def test_time_exit_triggered_at_session_end() -> None:
     cfg = _Cfg(
         session_end_time=time(15, 10),
         atr_values_5m=[1.0, 1.0, 1.0],
-        trailing_stop_5m=[99.0, 99.5, 100.0],
+        trailing_stop_5m=[98.0, 97.5, 97.0],
     )
 
     result = run_simulation(candles, signals_5m, signals_15m, mtf, cfg)
@@ -472,3 +472,81 @@ def test_exit_on_15m_signal() -> None:
     assert len(result.trades) == 1
     trade = result.trades[0]
     assert trade.exit_reason.value == "SIGNAL_15M"
+
+
+def test_hard_sl_is_active_stop_before_trail_overtakes() -> None:
+    # Entry: BUY at 100, hard_sl at 95 (atr=5, multiplier=1.0)
+    # Trailing stops: [95.0, 94.8, 94.5] (stay at or below hard_sl)
+    # active_stop = max(hard_sl, trail_sl) = max(95.0, trail_sl) = 95.0
+    # Candle at bar 2 dips to 94.8, hits active_stop (95.0)
+    candles = [
+        _candle(_dt(9, 15), 100, 101, 99, 100),   # Entry bar
+        _candle(_dt(9, 20), 100, 102, 95.5, 100), # Trail at 94.8 (updated after), hard_sl=95
+        _candle(_dt(9, 25), 100, 102, 94.8, 100), # Dips below hard_sl
+        _candle(_dt(9, 30), 100, 101, 99, 100),   # Exit confirmation
+    ]
+    signals_5m = [
+        SignalTransition(side=SignalSide.BUY, is_fresh=True, bar_index=0),
+        SignalTransition(side=SignalSide.BUY, is_fresh=False, bar_index=1),
+        SignalTransition(side=SignalSide.BUY, is_fresh=False, bar_index=2),
+        SignalTransition(side=SignalSide.SELL, is_fresh=True, bar_index=3),
+    ]
+    signals_15m = [
+        SignalTransition(side=SignalSide.NEUTRAL, is_fresh=False, bar_index=0),
+        SignalTransition(side=SignalSide.NEUTRAL, is_fresh=False, bar_index=1),
+        SignalTransition(side=SignalSide.NEUTRAL, is_fresh=False, bar_index=2),
+        SignalTransition(side=SignalSide.NEUTRAL, is_fresh=False, bar_index=3),
+    ]
+    mtf = [_aligned(c.timestamp) for c in candles]
+    cfg = _Cfg(
+        sl_atr_multiplier=1.0,
+        atr_values_5m=[5.0, 5.0, 5.0, 5.0],
+        trailing_stop_5m=[95.0, 94.8, 94.5, 94.0],
+    )
+
+    result = run_simulation(candles, signals_5m, signals_15m, mtf, cfg)
+    assert len(result.trades) == 1
+    trade = result.trades[0]
+    assert trade.direction.value == "BUY"
+    assert trade.exit_reason.value == "HARD_SL"
+    assert trade.exit_price == pytest.approx(95.0, abs=0.01)  # Hard SL is the active stop
+
+
+def test_trail_becomes_active_stop_after_overtaking_hard_sl() -> None:
+    # Entry: BUY at 100, hard_sl at 95 (atr=5, multiplier=1.0)
+    # Trailing stops: [95.0, 96.5, 97.0, 98.0] (ratchets above hard_sl)
+    # Bar 0: entry, trail=95.0, active_stop=max(95.0,95.0)=95.0
+    # Bar 1: trail updated to 96.5, candle doesn't breach 95.0, so continues
+    # Bar 2: current_stop=96.5, active_stop=max(95.0,96.5)=96.5, candle dips to 96.0
+    #        96.0 <= 96.5 so breach on trail (not hard_sl)
+    candles = [
+        _candle(_dt(9, 15), 100, 101, 99, 100),   # Entry bar
+        _candle(_dt(9, 20), 100, 102, 100, 100),  # No breach yet
+        _candle(_dt(9, 25), 100, 102, 96.0, 100), # Dips to 96.0, hits trail at 96.5
+        _candle(_dt(9, 30), 100, 101, 99, 100),   # Exit confirmation
+    ]
+    signals_5m = [
+        SignalTransition(side=SignalSide.BUY, is_fresh=True, bar_index=0),
+        SignalTransition(side=SignalSide.BUY, is_fresh=False, bar_index=1),
+        SignalTransition(side=SignalSide.BUY, is_fresh=False, bar_index=2),
+        SignalTransition(side=SignalSide.SELL, is_fresh=True, bar_index=3),
+    ]
+    signals_15m = [
+        SignalTransition(side=SignalSide.NEUTRAL, is_fresh=False, bar_index=0),
+        SignalTransition(side=SignalSide.NEUTRAL, is_fresh=False, bar_index=1),
+        SignalTransition(side=SignalSide.NEUTRAL, is_fresh=False, bar_index=2),
+        SignalTransition(side=SignalSide.NEUTRAL, is_fresh=False, bar_index=3),
+    ]
+    mtf = [_aligned(c.timestamp) for c in candles]
+    cfg = _Cfg(
+        sl_atr_multiplier=1.0,
+        atr_values_5m=[5.0, 5.0, 5.0, 5.0],
+        trailing_stop_5m=[95.0, 96.5, 97.0, 98.0],
+    )
+
+    result = run_simulation(candles, signals_5m, signals_15m, mtf, cfg)
+    assert len(result.trades) == 1
+    trade = result.trades[0]
+    assert trade.direction.value == "BUY"
+    assert trade.exit_reason.value == "HARD_SL"
+    assert trade.exit_price == pytest.approx(96.5, abs=0.01)  # Trail is now the active stop
