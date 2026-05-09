@@ -21,11 +21,11 @@ def run_backtest(
     end_date: date,
     config_dict: dict,
     db_path: str,
-) -> SimulationResult:
+) -> tuple[SimulationResult, str]:
     """Execute a complete backtest with configuration validation.
 
     Orchestrates the full pipeline: validate config, open database,
-    execute backtest, return results.
+    execute backtest, generate reports, return results.
 
     Args:
         symbol: Instrument symbol to backtest.
@@ -35,7 +35,7 @@ def run_backtest(
         db_path: Path to SQLite database file.
 
     Returns:
-        SimulationResult with completed trades and rejected trades.
+        Tuple of (SimulationResult, output_directory_path).
 
     Raises:
         ValueError: If config is invalid.
@@ -63,7 +63,7 @@ def run_backtest(
         output_dir = write_run_report(result, config)
         logger.info(f"Reports written to: {output_dir}")
 
-        return result
+        return result, output_dir
 
     finally:
         if conn is not None:
