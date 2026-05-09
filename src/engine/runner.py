@@ -10,6 +10,7 @@ from datetime import date
 from src.engine.executor import execute_backtest
 from src.models.backtest_config import BacktestConfig
 from src.models.simulation_result import SimulationResult
+from src.reports.writer import write_run_report
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,10 @@ def run_backtest(
             f"Run {run_id} complete: {len(result.trades)} trades, "
             f"{len(result.rejected_trades)} rejected"
         )
+
+        output_dir = write_run_report(result, config)
+        logger.info(f"Reports written to: {output_dir}")
+
         return result
 
     finally:
