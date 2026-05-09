@@ -11,6 +11,7 @@ from datetime import date
 from pathlib import Path
 
 from src.data.upstox_client import UpstoxClient
+from src.db.schema import create_all_tables
 from src.engine.exceptions import ExecutionError
 from src.engine.runner import run_backtest
 from src.upstox.auth import UpstoxTokenStore
@@ -103,6 +104,7 @@ def _ingest_command(args: argparse.Namespace) -> int:
 
     conn = sqlite3.connect(args.db)
     try:
+        create_all_tables(conn)
         results = ingest_symbol(
             symbol=args.symbol,
             instrument_key=args.instrument_key,
