@@ -23,12 +23,18 @@ src/
 ├── engine/         # Risk sizing, charges, trade state models
 ├── indicators/     # ATR, trailing stop, signal detection, multi-timeframe alignment
 ├── models/         # Domain dataclasses (Candle, Trade, SignalState, RejectedTrade)
+├── upstox/         # OAuth2 token management, API data ingestion (separate from engine)
 ├── utils/          # Enums, exceptions, datetime helpers
+├── reports/        # Trade/rejected trade formatting, summary building, CSV/JSON export
 └── config.py       # Pydantic config loader (reads YAML)
 
+scripts/
+├── get_upstox_token.py  # Standalone OAuth2 authorization script
+
 tests/unit/        # Unit tests by module
+tests/integration/  # Integration tests (full pipelines)
 docs/              # Requirements baseline, technical guide, TradingView reference
-config/            # YAML configuration files
+config/            # JSON/YAML configuration files
 ```
 
 ---
@@ -97,6 +103,41 @@ Upstox API → Fetch candles → Validate → Transform → SQLite storage
 
 **Critical rule**: No lookahead bias. A higher-timeframe candle is available only after its `close_time` has passed.
 
+### Upstox Data Ingestion (Separate Module)
+
+The `src/upstox/` module is **completely isolated from the backtest engine**. Data flows one-way: Upstox API → src/upstox/ → SQLite → engine reads via src/db/.
+
+**The engine never imports from src/upstox/.**
+
+Ingestion pipeline:
+```
+Upstox API (HTTP)
+      ↓
+UpstoxClient.fetch_historical_candles() [HTTP adapter, no business logic]
+      ↓
+ingest_symbol() [orchestrate three timeframes: 1d, 15m, 5m]
+      ↓
+For each timeframe:
+  1. transform_candles() [raw API dict → Candle domain model]
+  2. validate_candle_sequence() [schema, gaps, market hours]
+  3. CandleRepository.insert_candles() [upsert to SQLite]
+      ↓
+Returns: dict[timeframe -> candle_count]
+```
+
+**Token management:**
+- `UpstoxTokenStore`: Persist OAuth2 token to JSON with expiration
+- `scripts/get_upstox_token.py`: Standalone script for browser-based authorization flow
+- Token stored as: `{ "access_token": "...", "expires_at": "ISO8601" }`
+
+**CLI entry point:**
+```bash
+python -m src.main ingest \
+  --symbol NIFTY --instrument-key "NSE_INDEX|Nifty 50" \
+  --start-date 2024-01-01 --end-date 2024-03-31 \
+  --db data/candles.db --token-file config/upstox_token.json
+```
+
 ### Module Contracts (See `.github/copilot-instructions.md` § 7 for complete list)
 
 | Module | Responsibility |
@@ -105,6 +146,9 @@ Upstox API → Fetch candles → Validate → Transform → SQLite storage
 | `src/data/fetcher.py` | Orchestrate fetch and write raw candles to DB |
 | `src/data/validator.py` | Schema checks, gap detection, session-hour filtering |
 | `src/data/transformer.py` | Timestamp normalization to `Asia/Kolkata`, field casting |
+| `src/upstox/auth.py` | OAuth2 token persistence and validation |
+| `src/upstox/ingester.py` | Orchestrate candle fetch, transform, validate, insert (three timeframes) |
+| `src/upstox/transformer.py` | Convert raw Upstox API candles to Candle domain models |
 | `src/indicators/atr.py` | ATR computation only |
 | `src/indicators/trailing_stop.py` | Recursive ATR trailing stop (must use for-loop, not vectorized) |
 | `src/indicators/signals.py` | Generate signal states (BUY/SELL/NEUTRAL) from trailing stop |
@@ -113,6 +157,9 @@ Upstox API → Fetch candles → Validate → Transform → SQLite storage
 | `src/engine/position.py` | Position size calculation from ATR and risk % |
 | `src/engine/risk.py` | Hard stop price computation from ATR sensitivity |
 | `src/engine/trade_state.py` | Trade and RejectedTrade domain models |
+| `src/reports/trade_formatter.py` | Convert trades to CSV-ready dictionaries |
+| `src/reports/summary_builder.py` | Aggregate run-level statistics (PnL, win rate, max drawdown) |
+| `src/reports/writer.py` | Write trades, rejected trades, summary, config to CSV/JSON |
 | `src/models/` | Dataclass/Pydantic domain models only — no logic |
 | `src/utils/` | Pure utilities — datetime, enums, exceptions |
 
