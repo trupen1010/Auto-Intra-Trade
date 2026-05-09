@@ -53,22 +53,29 @@ def ingest_symbol(
 
     Returns:
         Dictionary mapping timeframe -> candles_ingested count.
+        Skipped timeframes due to API errors are excluded from results.
 
     Raises:
         ValueError: If timeframe is unsupported or validation fails.
-        Exception: Propagates errors from API, transformation, or validation.
+        Exception: Propagates non-API errors from transformation or validation.
     """
     results: dict[str, int] = {}
 
     for timeframe in timeframes:
         logger.info(f"Fetching {timeframe} candles for {symbol}...")
 
-        raw_candles = client.fetch_historical_candles(
-            symbol=instrument_key,
-            timeframe=timeframe,
-            from_date=start_date,
-            to_date=end_date,
-        )
+        try:
+            raw_candles = client.fetch_historical_candles(
+                symbol=instrument_key,
+                timeframe=timeframe,
+                from_date=start_date,
+                to_date=end_date,
+            )
+        except Exception as e:
+            logger.warning(f"  Skipped {timeframe}: API unavailable ({type(e).__name__})")
+            sleep(_REQUEST_DELAY_SECONDS)
+            continue
+
         logger.info(f"  Received {len(raw_candles)} raw candles")
 
         candles = transform_candles(raw_candles, symbol, timeframe)

@@ -140,20 +140,23 @@ class TestIngestSymbol:
                     conn=conn,
                 )
 
-    def test_ingest_symbol_propagates_client_error(self) -> None:
-        """Test that client errors are propagated."""
+    def test_ingest_symbol_skips_unavailable_timeframes(self) -> None:
+        """Test that unavailable timeframes are skipped gracefully."""
         conn = MagicMock()
 
         mock_client = MagicMock()
         mock_client.fetch_historical_candles.side_effect = ValueError("API error")
 
-        with pytest.raises(ValueError, match="API error"):
-            ingest_symbol(
-                symbol="NIFTY",
-                instrument_key="NSE_INDEX|Nifty 50",
-                timeframes=["1d"],
-                start_date=date(2024, 1, 1),
-                end_date=date(2024, 1, 31),
-                client=mock_client,
-                conn=conn,
-            )
+        with patch("src.upstox.ingester.validate_candle_sequence"):
+            with patch("src.upstox.ingester.CandleRepository.insert_candles"):
+                results = ingest_symbol(
+                    symbol="NIFTY",
+                    instrument_key="NSE_INDEX|Nifty 50",
+                    timeframes=["1d"],
+                    start_date=date(2024, 1, 1),
+                    end_date=date(2024, 1, 31),
+                    client=mock_client,
+                    conn=conn,
+                )
+
+        assert results == {}
