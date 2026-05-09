@@ -129,6 +129,10 @@ def execute_backtest(
             signals_15m_raw, candles_15m, candles_5m
         )
 
+        # Populate computed state in config for simulator.
+        config.atr_values_5m = atr_5m
+        config.trailing_stop_5m = trail_5m
+
         # 6. Run the simulation.
         logger.info("Running candle-by-candle simulation...")
         result = run_simulation(

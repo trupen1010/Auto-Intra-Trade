@@ -19,7 +19,7 @@ from src.utils.exceptions import InsufficientDataError
 IST = ZoneInfo("Asia/Kolkata")
 
 
-@dataclass(slots=True)
+@dataclass
 class _Cfg:
     """Test executor configuration."""
 
@@ -32,6 +32,8 @@ class _Cfg:
     session_end_time: time = time(15, 30)
     atr_period: int = 3
     atr_sensitivity: int = 2
+    atr_values_5m: list[float] = field(default_factory=list)
+    trailing_stop_5m: list[float | None] = field(default_factory=list)
 
     @dataclass(slots=True)
     class _Charges:

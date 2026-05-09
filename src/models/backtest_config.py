@@ -39,7 +39,7 @@ class ChargesConfig:
             raise ValueError("All charge values must be non-negative")
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass
 class BacktestConfig:
     """Complete backtest configuration.
 
@@ -120,6 +120,17 @@ class BacktestConfig:
         except TypeError as e:
             raise ValueError(f"Invalid charges config: {e}") from e
 
+        # Parse time strings (HH:MM format) to datetime.time objects
+        def parse_time(time_str: str | time) -> time:
+            if isinstance(time_str, time):
+                return time_str
+            if isinstance(time_str, str):
+                try:
+                    return time.fromisoformat(time_str)
+                except ValueError:
+                    raise ValueError(f"Invalid time format: {time_str}. Expected HH:MM")
+            raise TypeError(f"Time must be string or time object, got {type(time_str)}")
+
         try:
             return cls(
                 run_id=run_id,
@@ -131,8 +142,8 @@ class BacktestConfig:
                 sl_atr_multiplier=float(d["sl_atr_multiplier"]),
                 atr_period=int(d["atr_period"]),
                 atr_sensitivity=int(d["atr_sensitivity"]),
-                entry_cutoff_time=d["entry_cutoff_time"],
-                session_end_time=d["session_end_time"],
+                entry_cutoff_time=parse_time(d["entry_cutoff_time"]),
+                session_end_time=parse_time(d["session_end_time"]),
                 charges=charges,
             )
         except (TypeError, ValueError) as e:

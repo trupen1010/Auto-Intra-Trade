@@ -242,13 +242,16 @@ class TestBacktestConfig:
         with pytest.raises(TypeError, match="charges must be a dictionary"):
             BacktestConfig.from_dict(config_dict, run_id="test_123", symbol="SBIN")
 
-    def test_backtest_config_frozen(self, valid_config_dict: dict) -> None:
-        """Test that BacktestConfig is immutable (frozen)."""
+    def test_backtest_config_mutable_computed_fields(
+        self, valid_config_dict: dict
+    ) -> None:
+        """Test that computed fields can be updated after creation."""
         config = BacktestConfig.from_dict(
             valid_config_dict, run_id="test_123", symbol="SBIN"
         )
-        with pytest.raises(AttributeError):
-            config.initial_capital = 200_000.0
+        assert config.atr_values_5m == []
+        config.atr_values_5m = [1.0, 2.0, 3.0]
+        assert config.atr_values_5m == [1.0, 2.0, 3.0]
 
     def test_backtest_config_runtime_arrays_initialized_empty(
         self, valid_config_dict: dict
@@ -259,3 +262,58 @@ class TestBacktestConfig:
         )
         assert config.atr_values_5m == []
         assert config.trailing_stop_5m == []
+
+    def test_from_dict_parses_time_strings(self, valid_charges_dict: dict) -> None:
+        """Test that time strings (HH:MM) are parsed to datetime.time objects."""
+        config_dict = {
+            "initial_capital": 100_000.0,
+            "risk_per_trade_pct": 0.01,
+            "sl_atr_multiplier": 2.0,
+            "atr_period": 14,
+            "atr_sensitivity": 1,
+            "start_date": date(2024, 1, 1),
+            "end_date": date(2024, 1, 31),
+            "entry_cutoff_time": "15:00",  # String format
+            "session_end_time": "15:15",  # String format
+            "charges": valid_charges_dict,
+        }
+        config = BacktestConfig.from_dict(config_dict, run_id="test_123", symbol="SBIN")
+        assert config.entry_cutoff_time == time(15, 0)
+        assert config.session_end_time == time(15, 15)
+
+    def test_from_dict_accepts_time_objects(self, valid_charges_dict: dict) -> None:
+        """Test that already-parsed time objects are accepted."""
+        config_dict = {
+            "initial_capital": 100_000.0,
+            "risk_per_trade_pct": 0.01,
+            "sl_atr_multiplier": 2.0,
+            "atr_period": 14,
+            "atr_sensitivity": 1,
+            "start_date": date(2024, 1, 1),
+            "end_date": date(2024, 1, 31),
+            "entry_cutoff_time": time(15, 0),  # Already a time object
+            "session_end_time": time(15, 15),  # Already a time object
+            "charges": valid_charges_dict,
+        }
+        config = BacktestConfig.from_dict(config_dict, run_id="test_123", symbol="SBIN")
+        assert config.entry_cutoff_time == time(15, 0)
+        assert config.session_end_time == time(15, 15)
+
+    def test_from_dict_invalid_time_format_raises_error(
+        self, valid_charges_dict: dict
+    ) -> None:
+        """Test that invalid time format raises ValueError."""
+        config_dict = {
+            "initial_capital": 100_000.0,
+            "risk_per_trade_pct": 0.01,
+            "sl_atr_multiplier": 2.0,
+            "atr_period": 14,
+            "atr_sensitivity": 1,
+            "start_date": date(2024, 1, 1),
+            "end_date": date(2024, 1, 31),
+            "entry_cutoff_time": "invalid_time",
+            "session_end_time": "15:15",
+            "charges": valid_charges_dict,
+        }
+        with pytest.raises(ValueError, match="Invalid time format"):
+            BacktestConfig.from_dict(config_dict, run_id="test_123", symbol="SBIN")
