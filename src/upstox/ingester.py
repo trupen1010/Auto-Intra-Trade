@@ -11,6 +11,7 @@ from src.data.transformer import transform_candles
 from src.data.validator import validate_candle_sequence
 from src.db.repository import CandleRepository
 from src.upstox.client import UpstoxClient
+from src.upstox.exceptions import UpstoxAPIError
 from src.utils.enums import Timeframe
 
 logger = logging.getLogger(__name__)
@@ -106,8 +107,9 @@ def ingest_symbol(
         Skipped timeframes due to API errors are excluded from results.
 
     Raises:
-        ValueError: If timeframe is unsupported or validation fails.
-        Exception: Propagates non-API errors from transformation or validation.
+        ValueError: If timeframe is unsupported.
+        InvalidCandleError: If transformation or validation fails.
+        UpstoxAPIError: Re-raised if all chunks for a timeframe fail.
     """
     results: dict[str, int] = {}
 
@@ -128,7 +130,8 @@ def ingest_symbol(
 
         all_raw_candles = []
 
-        # Fetch each chunk
+        # Fetch each chunk; only UpstoxAPIError (transient HTTP failures) are
+        # swallowed here — transform/validation errors propagate immediately.
         for chunk_idx, (chunk_from, chunk_to) in enumerate(chunks, 1):
             logger.info(f"  Chunk {chunk_idx}/{len(chunks)}: {chunk_from} to {chunk_to}")
 
@@ -141,9 +144,9 @@ def ingest_symbol(
                 )
                 all_raw_candles.extend(raw_candles)
                 logger.info(f"    Received {len(raw_candles)} raw candles")
-            except Exception as e:
+            except UpstoxAPIError as e:
                 logger.warning(
-                    f"    Chunk {chunk_idx} skipped: API unavailable ({type(e).__name__})"
+                    f"    Chunk {chunk_idx} skipped: Upstox API error ({e.status_code})"
                 )
                 sleep(_REQUEST_DELAY_SECONDS)
                 continue

@@ -30,6 +30,7 @@ class OpenPosition:
         exit_price: float,
         exit_reason: ExitReason,
         charges: float,
+        capital_before_trade: float,
     ) -> EngineTradeState:
         """Return a new immutable trade state with exit + PnL computed.
 
@@ -43,10 +44,12 @@ class OpenPosition:
             exit_price: Executed exit price.
             exit_reason: Reason for closing.
             charges: Precomputed round-trip charges in rupees.
+            capital_before_trade: Portfolio capital at the moment of entry,
+                used to size positions correctly and for audit reproducibility.
 
         Returns:
             A new :class:`~src.engine.trade_state.EngineTradeState` with exit
-            fields and PnL populated.
+            fields, PnL, and capital snapshot populated.
 
         Raises:
             ValueError: If exit_time is not IST-aware or charges is negative.
@@ -63,6 +66,7 @@ class OpenPosition:
         )
         pnl_rupees = pnl_points * float(self.trade.quantity)
         net_pnl = pnl_rupees - charges
+        capital_after_trade = capital_before_trade + net_pnl
 
         return EngineTradeState(
             run_id=self.trade.run_id,
@@ -80,4 +84,6 @@ class OpenPosition:
             pnl_rupees=pnl_rupees,
             charges=charges,
             net_pnl=net_pnl,
+            capital_before_trade=capital_before_trade,
+            capital_after_trade=capital_after_trade,
         )

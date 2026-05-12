@@ -94,6 +94,10 @@ def run_simulation(
     open_position: OpenPosition | None = None
     last_exit_bar_index: int | None = None
 
+    # Running capital: updated after every closed trade so that position
+    # sizing always uses the current portfolio value, not the starting value.
+    current_capital: float = config.initial_capital
+
     session_end_time = config.session_end_time
 
     for index, candle in enumerate(candles_5m):
@@ -123,6 +127,9 @@ def run_simulation(
             if hard_sl_hit:
                 exit_price = active_stop
                 exit_reason = ExitReason.HARD_SL
+                # exit_time is set to the bar's open timestamp; the SL is assumed
+                # to have been triggered somewhere during this 5m bar (intraday
+                # simplification — exact tick time is unavailable).
                 exit_time = candle.timestamp
                 charges = _compute_round_trip_charges(
                     entry_price=open_position.trade.entry_price,
@@ -130,14 +137,15 @@ def run_simulation(
                     quantity=open_position.trade.quantity,
                     config=config,
                 )
-                trades.append(
-                    open_position.to_closed_trade(
-                        exit_time=exit_time,
-                        exit_price=exit_price,
-                        exit_reason=exit_reason,
-                        charges=charges,
-                    )
+                closed = open_position.to_closed_trade(
+                    exit_time=exit_time,
+                    exit_price=exit_price,
+                    exit_reason=exit_reason,
+                    charges=charges,
+                    capital_before_trade=current_capital,
                 )
+                trades.append(closed)
+                current_capital += closed.net_pnl  # type: ignore[operator]
                 open_position = None
                 exit_happened = True
 
@@ -146,6 +154,9 @@ def run_simulation(
                 if candle.timestamp >= session_end_dt:
                     exit_price = candle.close
                     exit_reason = ExitReason.TIME_EXIT
+                    # exit_time is set to the bar's open timestamp; the forced
+                    # session-end exit executes at the close of this bar
+                    # (intraday simplification — bar close time unavailable).
                     exit_time = candle.timestamp
                     charges = _compute_round_trip_charges(
                         entry_price=open_position.trade.entry_price,
@@ -153,14 +164,15 @@ def run_simulation(
                         quantity=open_position.trade.quantity,
                         config=config,
                     )
-                    trades.append(
-                        open_position.to_closed_trade(
-                            exit_time=exit_time,
-                            exit_price=exit_price,
-                            exit_reason=exit_reason,
-                            charges=charges,
-                        )
+                    closed = open_position.to_closed_trade(
+                        exit_time=exit_time,
+                        exit_price=exit_price,
+                        exit_reason=exit_reason,
+                        charges=charges,
+                        capital_before_trade=current_capital,
                     )
+                    trades.append(closed)
+                    current_capital += closed.net_pnl  # type: ignore[operator]
                     open_position = None
                     exit_happened = True
 
@@ -192,14 +204,15 @@ def run_simulation(
                         quantity=open_position.trade.quantity,
                         config=config,
                     )
-                    trades.append(
-                        open_position.to_closed_trade(
-                            exit_time=exit_time,
-                            exit_price=exit_price,
-                            exit_reason=exit_reason,
-                            charges=charges,
-                        )
+                    closed = open_position.to_closed_trade(
+                        exit_time=exit_time,
+                        exit_price=exit_price,
+                        exit_reason=exit_reason,
+                        charges=charges,
+                        capital_before_trade=current_capital,
                     )
+                    trades.append(closed)
+                    current_capital += closed.net_pnl  # type: ignore[operator]
                     open_position = None
                     exit_happened = True
 
@@ -235,7 +248,7 @@ def run_simulation(
                         sl_atr_multiplier=config.sl_atr_multiplier,
                     )
                     quantity = compute_position_size(
-                        capital=config.initial_capital,
+                        capital=current_capital,
                         risk_pct=config.risk_per_trade_pct,
                         entry_price=entry_price,
                         hard_sl_price=hard_sl,

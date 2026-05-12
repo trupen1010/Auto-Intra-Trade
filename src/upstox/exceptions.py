@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from src.utils.exceptions import BacktestEngineError
 
-class UpstoxAPIError(RuntimeError):
+
+class UpstoxAPIError(BacktestEngineError):
     """Raised when Upstox API returns an error response."""
 
     def __init__(self, status_code: int, body: str) -> None:

@@ -47,6 +47,8 @@ class EngineTradeState:
         pnl_rupees: ``pnl_points * quantity`` (None while open).
         charges: Round-trip charges in rupees (None while open).
         net_pnl: ``pnl_rupees - charges`` (None while open).
+        capital_before_trade: Portfolio capital at the moment of entry (None while open).
+        capital_after_trade: Portfolio capital after net_pnl applied (None while open).
     """
 
     run_id: str
@@ -64,6 +66,8 @@ class EngineTradeState:
     pnl_rupees: float | None = None
     charges: float | None = None
     net_pnl: float | None = None
+    capital_before_trade: float | None = None
+    capital_after_trade: float | None = None
 
     def __post_init__(self) -> None:
         """Validate and coerce enum fields after initialization.

@@ -10,8 +10,8 @@ from src.utils.enums import SignalSide, TradeSide
 def format_trades(trades: list[EngineTradeState]) -> list[dict]:
     """Convert closed trades to flat dictionary rows for CSV export.
 
-    Each row contains entry/exit details, PnL, charges, and exit reason.
-    Timestamps are ISO8601 strings in IST timezone.
+    Each row contains entry/exit details, PnL, charges, capital snapshots,
+    and exit reason. Timestamps are ISO8601 strings in IST timezone.
 
     Args:
         trades: List of closed EngineTradeState objects.
@@ -37,6 +37,16 @@ def format_trades(trades: list[EngineTradeState]) -> list[dict]:
             "net_pnl": round(trade.net_pnl, 2) if trade.net_pnl is not None else 0,
             "hard_sl": round(trade.hard_sl, 2),
             "exit_reason": trade.exit_reason.value if trade.exit_reason else "",
+            "capital_before_trade": (
+                round(trade.capital_before_trade, 2)
+                if trade.capital_before_trade is not None
+                else None
+            ),
+            "capital_after_trade": (
+                round(trade.capital_after_trade, 2)
+                if trade.capital_after_trade is not None
+                else None
+            ),
         }
         rows.append(row)
     return rows
