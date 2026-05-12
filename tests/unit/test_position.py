@@ -33,13 +33,15 @@ def test_to_closed_trade_buy_profit() -> None:
     closed = position.to_closed_trade(
         exit_time=_dt(9, 25),
         exit_price=110.0,
-        exit_reason=ExitReason.SIGNAL_EXIT,
+        exit_reason=ExitReason.SIGNAL_5M,
         charges=0.0,
+        capital_before_trade=10_000.0,
     )
 
     assert closed.pnl_points == pytest.approx(10.0, abs=1e-4)
     assert closed.pnl_rupees == pytest.approx(100.0, abs=1e-4)
     assert closed.net_pnl == pytest.approx(100.0, abs=1e-4)
+    assert closed.capital_after_trade == pytest.approx(10_100.0, abs=1e-4)
 
 
 def test_to_closed_trade_sell_profit() -> None:
@@ -60,10 +62,12 @@ def test_to_closed_trade_sell_profit() -> None:
         exit_price=180.0,
         exit_reason=ExitReason.TIME_EXIT,
         charges=0.0,
+        capital_before_trade=10_000.0,
     )
 
     assert closed.pnl_points == pytest.approx(20.0, abs=1e-4)
     assert closed.pnl_rupees == pytest.approx(100.0, abs=1e-4)
+    assert closed.capital_after_trade == pytest.approx(10_100.0, abs=1e-4)
 
 
 def test_to_closed_trade_charges_reduce_net_pnl() -> None:
@@ -84,12 +88,14 @@ def test_to_closed_trade_charges_reduce_net_pnl() -> None:
     closed = position.to_closed_trade(
         exit_time=_dt(11, 5),
         exit_price=110.0,
-        exit_reason=ExitReason.SIGNAL_EXIT,
+        exit_reason=ExitReason.SIGNAL_5M,
         charges=precomputed_charges,
+        capital_before_trade=10_000.0,
     )
 
     assert closed.charges == pytest.approx(21.0, abs=1e-4)
     assert closed.net_pnl == pytest.approx(79.0, abs=1e-4)
+    assert closed.capital_after_trade == pytest.approx(10_079.0, abs=1e-4)
 
 
 def test_pnl_points_sign_correct_for_loss() -> None:
@@ -108,6 +114,7 @@ def test_pnl_points_sign_correct_for_loss() -> None:
         exit_price=90.0,
         exit_reason=ExitReason.HARD_SL,
         charges=0.0,
+        capital_before_trade=10_000.0,
     )
     assert buy_closed.pnl_points == pytest.approx(-10.0, abs=1e-4)
 
@@ -126,7 +133,6 @@ def test_pnl_points_sign_correct_for_loss() -> None:
         exit_price=110.0,
         exit_reason=ExitReason.HARD_SL,
         charges=0.0,
+        capital_before_trade=10_000.0,
     )
     assert sell_closed.pnl_points == pytest.approx(-10.0, abs=1e-4)
-
-
