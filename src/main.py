@@ -10,12 +10,12 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
-from src.data.upstox_client import UpstoxClient
 from src.db.schema import create_all_tables
-from src.engine.exceptions import ExecutionError
 from src.engine.runner import run_backtest
 from src.upstox.auth import UpstoxTokenStore
+from src.upstox.client import UpstoxClient
 from src.upstox.ingester import ingest_symbol
+from src.utils.exceptions import ExecutionError
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ def _run_command(args: argparse.Namespace) -> int:
     print(f"Symbol:        {args.symbol}")
     print(f"Total trades:  {len(result.trades)}")
     print(f"Rejected:      {len(result.rejected_trades)}")
-    print(f"Net PnL:       ₹{net_pnl:,.2f}")
+    print(f"Net PnL:       \u20b9{net_pnl:,.2f}")
     print(f"Output dir:    {output_dir}")
     print("=" * 60)
     print()

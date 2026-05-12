@@ -8,11 +8,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.engine.exceptions import ExecutionError
 from src.engine.trade_state import EngineTradeState
 from src.main import _load_config, _parse_date, main
 from src.models.simulation_result import SimulationResult
 from src.utils.enums import EntryTF, ExitReason, SignalSide
+from src.utils.exceptions import ExecutionError
 from zoneinfo import ZoneInfo
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -111,8 +111,6 @@ class TestMainCommand:
 
     def test_missing_required_arg_exits_with_error(self) -> None:
         """Test that missing required argument exits with error code 1."""
-        # argparse calls sys.exit(2) for parse errors, which we can't easily catch
-        # Instead, we test that an exception or return code occurs
         try:
             exit_code = main(
                 [
@@ -122,10 +120,8 @@ class TestMainCommand:
                     # Missing --start-date, --end-date, --config, --db
                 ]
             )
-            # If we get here, it should be an error code
             assert exit_code != 0
         except SystemExit as e:
-            # argparse may call sys.exit(2)
             assert e.code != 0
 
     def test_invalid_date_format_exits_with_error(self, tmp_path: Path) -> None:
