@@ -6,10 +6,10 @@ import sqlite3
 from datetime import date
 
 from src.data.transformer import transform_candles
-from src.data.upstox_client import UpstoxClient
 from src.data.validator import validate_candle_sequence
 from src.db.repository import CandleRepository
 from src.models.candle import Candle
+from src.upstox.client import UpstoxClient
 
 
 def fetch_and_store_candles(

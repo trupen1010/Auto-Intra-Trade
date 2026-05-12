@@ -7,11 +7,11 @@ import sqlite3
 from datetime import date, timedelta
 from time import sleep
 
-from src.data.upstox_client import UpstoxClient
+from src.data.transformer import transform_candles
 from src.data.validator import validate_candle_sequence
 from src.db.repository import CandleRepository
+from src.upstox.client import UpstoxClient
 from src.utils.enums import Timeframe
-from src.upstox.transformer import transform_candles
 
 logger = logging.getLogger(__name__)
 

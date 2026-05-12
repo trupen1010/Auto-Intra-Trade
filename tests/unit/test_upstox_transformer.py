@@ -1,11 +1,15 @@
-"""Unit tests for Upstox candle transformation."""
+"""Unit tests for Upstox candle transformation.
+
+This file tests the canonical transform_candles implementation in
+src.data.transformer (the weaker src.upstox.transformer has been removed).
+"""
 
 from __future__ import annotations
 
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from src.upstox.transformer import transform_candles
+from src.data.transformer import transform_candles
 
 IST = ZoneInfo("Asia/Kolkata")
 

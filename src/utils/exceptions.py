@@ -31,3 +31,11 @@ class PositionSizeError(BacktestEngineError):
 
 class TradeStateError(BacktestEngineError):
     """Raised when trade state transitions are invalid."""
+
+
+class ExecutionError(BacktestEngineError):
+    """Raised when a stage in the backtest pipeline fails.
+
+    This exception wraps underlying validation or processing errors and
+    provides context about which stage of the pipeline encountered the issue.
+    """

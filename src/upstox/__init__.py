@@ -9,8 +9,8 @@ The engine never imports from this module.
 """
 
 from src.upstox.auth import UpstoxTokenStore
+from src.upstox.client import UpstoxClient
 from src.upstox.exceptions import UpstoxAPIError
 from src.upstox.ingester import ingest_symbol
-from src.upstox.transformer import transform_candles
 
-__all__ = ["UpstoxTokenStore", "UpstoxAPIError", "ingest_symbol", "transform_candles"]
+__all__ = ["UpstoxTokenStore", "UpstoxClient", "UpstoxAPIError", "ingest_symbol"]

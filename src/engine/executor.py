@@ -13,7 +13,6 @@ from zoneinfo import ZoneInfo
 
 from src.data.validator import validate_candle_sequence
 from src.db.repository import CandleRepository
-from src.engine.exceptions import ExecutionError
 from src.engine.simulator import run_simulation
 from src.indicators.atr import compute_atr
 from src.indicators.mtf_state import resolve_mtf_alignment
@@ -24,6 +23,7 @@ from src.models.signal_state import SignalTransition
 from src.models.simulation_result import SimulationResult
 from src.utils.datetime_utils import candle_close_time
 from src.utils.enums import SignalSide, Timeframe
+from src.utils.exceptions import ExecutionError
 
 logger = logging.getLogger(__name__)
 IST = ZoneInfo("Asia/Kolkata")
