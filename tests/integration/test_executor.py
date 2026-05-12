@@ -11,10 +11,9 @@ import pytest
 
 from src.db.repository import CandleRepository
 from src.db.schema import create_all_tables
-from src.engine.exceptions import ExecutionError
 from src.engine.executor import execute_backtest
 from src.models.candle import Candle
-from src.utils.exceptions import InsufficientDataError
+from src.utils.exceptions import ExecutionError, InsufficientDataError
 
 IST = ZoneInfo("Asia/Kolkata")
 

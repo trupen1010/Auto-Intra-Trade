@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from src.data.upstox_client import UpstoxClient
+from src.upstox.client import UpstoxClient
 from src.db.repository import CandleRepository
 from src.db.schema import create_all_tables
 from src.upstox.ingester import ingest_symbol

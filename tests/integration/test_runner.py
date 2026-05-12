@@ -183,7 +183,7 @@ def test_run_backtest_closes_connection_on_error() -> None:
 
         config_dict = _ConfigDict().to_dict()
 
-        from src.engine.exceptions import ExecutionError
+        from src.utils.exceptions import ExecutionError
 
         with pytest.raises(ExecutionError):
             run_backtest(
